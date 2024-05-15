@@ -1,0 +1,42 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+name: Check
+jobs:
+  conform:
+    name: Conformance
+    runs-on: ubuntu-latest
+    container:
+      image: golang:1
+      options: --user 1001 # https://github.com/actions/runner/issues/2033#issuecomment-1598547465
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Fetch master branch for reference
+        # The main branch detection of siderolabs/conform relies on the branch tracking the "origin" remote, see
+        # https://github.com/siderolabs/conform/blob/2feadaa74eef93dd35f303582f2e82afa62a119d/cmd/conform/enforce.go#L74
+        run: git checkout master && git checkout -
+        if: github.ref_name != 'master'
+      - name: Install siderolabs/conform
+        run: go install github.com/siderolabs/conform/cmd/conform@latest
+      - name: Run siderolabs/conform
+        run: conform enforce
+  golangci:
+    name: Linting
+    runs-on: ubuntu-latest
+    container:
+      image: golang:1
+      options: --user 1001 # https://github.com/actions/runner/issues/2033#issuecomment-1598547465
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest

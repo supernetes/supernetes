@@ -1,0 +1,37 @@
+policies:
+  - type: commit
+    spec:
+      header:
+        length: 89
+        imperative: true
+        case: lower
+        invalidLastCharacters: .
+      dco: true
+      gpg:
+        required: true
+        identity:
+          gitHubOrganization: supernetes
+      spellcheck:
+        locale: US
+      maximumOfOneCommit: true
+      conventional:
+        types:
+          - ci
+          - docs
+          - meta
+          - refactor
+          - release
+          - test
+  - type: license
+    spec:
+      skipPaths:
+        - .git/
+      includeSuffixes:
+        - .go
+      allowPrecedingComments: true
+      header: |
+        // SPDX-License-Identifier: MPL-2.0
+        //
+        // This Source Code Form is subject to the terms of the Mozilla Public
+        // License, v. 2.0. If a copy of the MPL was not distributed with this
+        // file, You can obtain one at http://mozilla.org/MPL/2.0/.
