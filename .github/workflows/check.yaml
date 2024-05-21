@@ -27,16 +27,59 @@ jobs:
         run: go install github.com/siderolabs/conform/cmd/conform@latest
       - name: Run siderolabs/conform
         run: conform enforce
-  golangci:
-    name: Linting
+  tidy:
+    name: Module Tidiness
     runs-on: ubuntu-latest
-    container:
-      image: golang:1
-      options: --user 1001 # https://github.com/actions/runner/issues/2033#issuecomment-1598547465
     steps:
       - name: Check out sources
         uses: actions/checkout@v4
+      - name: Run make tidy
+        run: make tidy
+      - name: Check changed files
+        id: check-changed-files
+        uses: tj-actions/verify-changed-files@v20
+        with:
+          read-gitignore: true
+      - name: List changed files
+        if: steps.check-changed-files.outputs.files_changed == 'true'
+        env:
+          CHANGED_FILES: ${{ steps.check-changed-files.outputs.changed_files }}
+        run: |
+          cat <<- EOF
+            Unexpected file changes:
+            $CHANGED_FILES
+
+            Please run \`make tidy\` and try again.
+          EOF
+          exit 1
+  # It's 2024 and https://github.com/golangci/golangci-lint/issues/828 has still not been resolved
+  resolve-modules:
+    name: Resolve Modules
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout Sources
+        uses: actions/checkout@v2
+      - name: Discover modules
+        id: set-matrix
+        run: |
+          PATHS=$(find . -mindepth 2 -type f -name go.mod -printf '{"workdir":"%h"},')
+          echo "::set-output name=matrix::{\"include\":[${PATHS%?}]}"
+  golangci:
+    name: Linting
+    needs: resolve-modules
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.resolve-modules.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+      - name: Compile protobuf artifacts
+        run: make proto
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          working-directory: ${{ matrix.workdir }}

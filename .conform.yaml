@@ -28,6 +28,7 @@ policies:
         - .git/
       includeSuffixes:
         - .go
+        - .proto
       allowPrecedingComments: true
       header: |
         // SPDX-License-Identifier: MPL-2.0
