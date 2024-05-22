@@ -9,8 +9,8 @@ policies:
       dco: true
       gpg:
         required: true
-        identity:
-          gitHubOrganization: supernetes
+#        identity:
+#          gitHubOrganization: supernetes
       spellcheck:
         locale: US
       maximumOfOneCommit: true
