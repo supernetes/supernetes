@@ -64,7 +64,7 @@ jobs:
       - name: Discover modules
         id: set-matrix
         run: |
-          PATHS=$(find . -mindepth 2 -type f -name go.mod -printf '{"workdir":"%h"},')
+          PATHS=$(find . -type f -name go.mod -printf '{"workdir":"%h"},')
           echo "::set-output name=matrix::{\"include\":[${PATHS%?}]}"
   golangci:
     name: Linting
@@ -81,5 +81,6 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
+          args: --timeout=5m
           version: latest
           working-directory: ${{ matrix.workdir }}
