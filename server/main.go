@@ -7,41 +7,35 @@
 package main
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"log"
-	"net"
-
-	pb "github.com/supernetes/supernetes/api"
-	"google.golang.org/grpc"
+	"github.com/rs/zerolog"
+	"github.com/spf13/pflag"
+	"github.com/supernetes/supernetes/common/pkg/log"
+	"github.com/supernetes/supernetes/server/pkg/config"
+	"github.com/supernetes/supernetes/server/pkg/daemon"
 )
 
 var (
-	port = flag.Int("port", 40404, "The server port")
+	port     uint16
+	logLevel string
 )
 
-// server is used to implement helloworld.GreeterServer.
-type server struct {
-	pb.UnimplementedGreeterServer
-}
-
-// SayHello implements helloworld.GreeterServer
-func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
-	log.Printf("Received: %v", in.GetName())
-	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
-}
-
 func main() {
-	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	// TODO: Implement full CLI with Cobra in `cmd`
+	pflag.Uint16VarP(&port, "port", "p", 40404, "Server port")
+	pflag.StringVarP(&logLevel, "log-level", "l", "trace", "Log level") // TODO: Change to "info"
+	pflag.Parse()
+
+	level, err := zerolog.ParseLevel(logLevel)
+	log.Init(level) // `level` is always well-defined
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Warn().Err(err).Msg("parsing log level failed")
 	}
-	s := grpc.NewServer()
-	pb.RegisterGreeterServer(s, &server{})
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+
+	dc := &config.DaemonConfig{
+		Port: port,
+	}
+
+	if err := daemon.Run(dc); err != nil {
+		log.Fatal().Err(err).Msg("")
 	}
 }

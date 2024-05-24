@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: MPL-2.0
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+syntax = "proto3";
+
+option go_package = "module github.com/supernetes/supernetes/api";
+
+package supernetes;
+
+// Null request/response type
+message Empty {}
+
+// API for node operations
+service NodeApi {
+  // Provide a list of all discovered nodes (schedulable or not)
+  rpc List (NodeList) returns (Empty) {}
+}
+
+// Node information list
+message NodeList {
+  repeated Node nodes = 1;
+}
+
+// Information about a particular node
+message Node {
+  string Name = 1;
+}

@@ -23,6 +23,15 @@ make clean
 
 > TODO
 
+## TODO
+
+- [ ] Connection from HPC client to K8s server
+- [ ] Container image packaging with GHCR
+- [ ] Kustomization for deployment with Flux
+- [ ] API for fetching nodes from HPC environment
+- [ ] Implement [Virtual Kubelet `node` API](https://pkg.go.dev/github.com/virtual-kubelet/virtual-kubelet/node)
+- [ ] Supernetes Operator
+
 ## Authors
 
 - Dennis Marttinen ([@twelho](https://github.com/twelho))
