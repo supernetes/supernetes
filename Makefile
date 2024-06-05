@@ -10,7 +10,7 @@ _docker-%:
 		-v .:/build \
 		-w /build \
 		supernetes-build \
-		$(MAKE) _$*
+		_$*
 
 # Internal Docker-invoked targets
 %.pb.go %_grpc.pb.go: %.proto
@@ -26,6 +26,7 @@ _tidy: _proto
 	find . -type f -name go.mod -execdir go mod tidy \;
 
 _clean:
+	rm -rf bin/
 	rm -f api/*.pb.go
 
 _interactive:
