@@ -60,12 +60,12 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout Sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Discover modules
         id: set-matrix
         run: |
           PATHS=$(find . -type f -name go.mod -printf '{"workdir":"%h"},')
-          echo "::set-output name=matrix::{\"include\":[${PATHS%?}]}"
+          echo "matrix={\"include\":[${PATHS%?}]}" >> "$GITHUB_OUTPUT"
   golangci:
     name: Linting
     needs: resolve-modules
