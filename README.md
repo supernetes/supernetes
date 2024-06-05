@@ -9,10 +9,10 @@ Supernetes is an HPC bridge for your Kubernetes environment: Expose your HPC nod
 
 ## Building
 
-The build system requires (rootless) `docker` (or Podman symlinked to `docker`) and `make` to be present on your system. To build the client and server binaries, simply run
+The build system requires (rootless) `docker` (or Podman symlinked to `docker`) and `make` to be present on your system. To build the controller and agent binaries, simply run
 
 ```shell
-make client server
+make
 ```
 
 To clean up any build artifacts, run
