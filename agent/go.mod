@@ -1,9 +1,10 @@
-module github.com/supernetes/supernetes/client
+module github.com/supernetes/supernetes/agent
 
 go 1.22.3
 
 require (
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
+	github.com/jhump/grpctunnel v0.3.0
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/pflag v1.0.5
 	github.com/supernetes/supernetes/api v0.0.0
@@ -12,6 +13,7 @@ require (
 )
 
 require (
+	github.com/fullstorydev/grpchan v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	golang.org/x/net v0.22.0 // indirect

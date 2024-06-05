@@ -1,4 +1,4 @@
-all: client server
+all: agent controller
 
 _docker-%:
 	docker build -t supernetes-build .
@@ -19,7 +19,7 @@ _docker-%:
 # Trim build directory and GOPATH from paths registered in built binaries
 go_flags := "all=-trimpath=$(shell pwd);$(GOPATH)"
 
-_client _server: _%: api/supernetes.pb.go
+_agent _controller: _%: api/supernetes.pb.go
 	go install -C ./$* -gcflags $(go_flags) -asmflags $(go_flags)
 
 _proto: $(patsubst %.proto,%.pb.go,$(wildcard api/*.proto))
@@ -36,10 +36,10 @@ _interactive:
 	sh # Spawn an interactive shell inside the build container
 
 # Developer API
-client server proto tidy clean interactive: %: _docker-%
+agent controller proto tidy clean interactive: %: _docker-%
 
 clean:
 	docker rmi -f supernetes-build
 	docker volume rm -f supernetes-build-cache
 
-.PHONY: all client server proto tidy clean interactive
+.PHONY: all agent controller proto tidy clean interactive

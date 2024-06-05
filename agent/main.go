@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: MPL-2.0
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+package main
+
+import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/jhump/grpctunnel"
+	"github.com/jhump/grpctunnel/tunnelpb"
+	"github.com/rs/zerolog"
+	"github.com/spf13/pflag"
+	"github.com/supernetes/supernetes/agent/pkg/server"
+	"github.com/supernetes/supernetes/api"
+	"github.com/supernetes/supernetes/common/pkg/log"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+var (
+	serverAddr string
+)
+
+func main() {
+	// TODO: Implement full CLI with Cobra in `cmd`
+	pflag.StringVarP(&serverAddr, "server", "s", "localhost:40404", "Address of server endpoint")
+	pflag.Parse()
+
+	log.Init(zerolog.TraceLevel)
+	log.Info().Msg("starting dummy agent")
+
+	log.Info().Msgf("connecting to server %q", serverAddr)
+	conn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials())) // TODO: TLS
+	if err != nil {
+		log.Fatal().Msgf("failed to connect: %v", err)
+	}
+	defer conn.Close()
+
+	// Register services for reverse tunnels
+	tunnelServer := grpctunnel.NewReverseTunnelServer(tunnelpb.NewTunnelServiceClient(conn))
+	agentServer := server.NewServer(10, 0.1)
+	api.RegisterAgentServer(tunnelServer, agentServer)
+
+	controllerDone := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		// Open the reverse tunnel and serve requests
+		log.Info().Msgf("listening for requests from server")
+		if started, err := tunnelServer.Serve(ctx); err != nil {
+			msg := "unable to start listening"
+			if started {
+				msg = "connection closed unexpectedly"
+			}
+			log.Fatal().Err(err).Msg(msg)
+		}
+
+		controllerDone <- struct{}{}
+	}()
+
+	agentDone := make(chan os.Signal, 1)
+	signal.Notify(agentDone, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case <-controllerDone:
+		log.Info().Msg("controller initiated shutdown")
+	case <-agentDone:
+		log.Info().Msg("agent initiated shutdown")
+	}
+
+	log.Debug().Msg("stopping gRPC tunnel")
+	tunnelServer.Stop()
+
+	log.Info().Msg("agent finished")
+}
