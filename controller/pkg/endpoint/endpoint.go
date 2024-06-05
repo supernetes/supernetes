@@ -61,6 +61,10 @@ func Serve(config *config.Controller) (Endpoint, error) {
 
 	// TODO: Multitenancy, this will round-robin through all reverse tunnels. Use handler.KeyAsChannel()
 	//  instead with an AffinityKey function above to scope it to only clients of a particular HPC environment
+
+	// TODO: Potentially, if Cilium is able to do TLS termination and apply L7 logic to gRPC traffic, we could
+	//  also just route different agents (HPC environments) to different controller instances -> better scalability
+
 	srv.client = api.NewAgentClient(srv.handler.AsChannel())
 
 	// Register reverse tunnel handler to a server that the agents can connect to
