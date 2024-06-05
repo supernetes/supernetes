@@ -27,12 +27,16 @@ make clean
 
 ## TODO
 
-- [ ] Connection from HPC client to K8s server
+- [x] Connection from HPC client to K8s server
+  - [ ] Authentication
+  - [ ] Encryption
 - [ ] Container image packaging with GHCR
 - [ ] Kustomization for deployment with Flux
 - [ ] API for fetching nodes from HPC environment
-- [ ] Implement [Virtual Kubelet `node` API](https://pkg.go.dev/github.com/virtual-kubelet/virtual-kubelet/node)
-- [ ] Supernetes Operator
+- [x] Implement [Virtual Kubelet `node` API](https://pkg.go.dev/github.com/virtual-kubelet/virtual-kubelet/node)
+- [ ] Implement VK pod operations
+- [ ] Node pruning controller (internal or external)
+- [ ] Deployment configuration
 
 ## Authors
 
