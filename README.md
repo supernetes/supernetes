@@ -1,8 +1,8 @@
 # Supernetes
 
-[![Go Report Card for `client`](https://goreportcard.com/badge/github.com/supernetes/supernetes/client)](https://goreportcard.com/report/github.com/supernetes/supernetes/client)
+[![Go Report Card for `agent`](https://goreportcard.com/badge/github.com/supernetes/supernetes/agent)](https://goreportcard.com/report/github.com/supernetes/supernetes/agent)
 [![Go Report Card for `common`](https://goreportcard.com/badge/github.com/supernetes/supernetes/common)](https://goreportcard.com/report/github.com/supernetes/supernetes/common)
-[![Go Report Card for `server`](https://goreportcard.com/badge/github.com/supernetes/supernetes/server)](https://goreportcard.com/report/github.com/supernetes/supernetes/server)
+[![Go Report Card for `controller`](https://goreportcard.com/badge/github.com/supernetes/supernetes/controller)](https://goreportcard.com/report/github.com/supernetes/supernetes/controller)
 [![Latest Release](https://img.shields.io/github/v/release/supernetes/supernetes?sort=semver)](https://github.com/supernetes/supernetes/releases)
 
 Supernetes is an HPC bridge for your Kubernetes environment: Expose your HPC nodes to Kubernetes-native tooling and schedulers, abstracting away the HPC-specific environment.
@@ -27,7 +27,7 @@ make clean
 
 ## TODO
 
-- [x] Connection from HPC client to K8s server
+- [x] Connection from HPC agent to K8s controller
   - [ ] Authentication
   - [ ] Encryption
 - [ ] Container image packaging with GHCR
