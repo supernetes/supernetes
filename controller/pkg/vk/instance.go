@@ -31,7 +31,8 @@ func newInstance(nodeInterface v1.NodeInterface, n *api.Node) *instance {
 	// TODO: This needs to be properly populated based on `n`
 	nodeCfg := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: n.Name,
+			Name:   n.Name,
+			Labels: map[string]string{"supernetes-node": "true"}, // TODO: Temporary, for easy kubectl filtering
 		},
 		Spec: corev1.NodeSpec{
 			Taints: []corev1.Taint{{
@@ -71,6 +72,14 @@ func newInstance(nodeInterface v1.NodeInterface, n *api.Node) *instance {
 			log.Err(err).Msgf("controller for node %q failed", n.Name)
 			return
 		}
+
+		// TODO: We need to defer/handle node deletion here, Virtual Kubelet doesn't seem to do it automatically
+		//  Normally, deletion of stale nodes after a timeout would normally be handled by the Cluster Autoscaler
+		//  (https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler), but this seems to heavily rely
+		//  on cloud-provider-specific APIs and won't work with Talos
+		// TODO: Maybe Supernetes should run another controller/reconciliation loop for handling virtual node pruning?
+		// TODO: Another option is the Kyverno cleanup controller (https://kyverno.io/docs/writing-policies/cleanup/)
+
 		log.Debug().Msgf("stopping controller for node %q", n.Name)
 	}()
 

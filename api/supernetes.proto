@@ -6,17 +6,17 @@
 
 syntax = "proto3";
 
-option go_package = "module github.com/supernetes/supernetes/api";
-
 package supernetes;
+
+option go_package = "module github.com/supernetes/supernetes/api";
 
 // Null request/response type
 message Empty {}
 
-// API for node operations
-service NodeApi {
+// Supernetes HPC agent API
+service Agent {
   // Provide a list of all discovered nodes (schedulable or not)
-  rpc List (NodeList) returns (Empty) {}
+  rpc List (Empty) returns (NodeList) {}
 }
 
 // Node information list

@@ -1,8 +1,9 @@
-module github.com/supernetes/supernetes/server
+module github.com/supernetes/supernetes/controller
 
 go 1.22.3
 
 require (
+	github.com/jhump/grpctunnel v0.3.0
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/pflag v1.0.5
 	github.com/supernetes/supernetes/api v0.0.0
@@ -17,6 +18,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
+	github.com/fullstorydev/grpchan v1.1.1 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect

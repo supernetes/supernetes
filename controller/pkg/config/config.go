@@ -6,6 +6,6 @@
 
 package config
 
-type DaemonConfig struct {
+type Controller struct {
 	Port uint16
 }
