@@ -16,8 +16,11 @@ _docker-%:
 %.pb.go %_grpc.pb.go: %.proto
 	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative $*.proto
 
+# Trim build directory and GOPATH from paths registered in built binaries
+go_flags := "all=-trimpath=$(shell pwd);$(GOPATH)"
+
 _client _server: _%: api/supernetes.pb.go
-	go install -C ./$* -ldflags "-X 'github.com/supernetes/supernetes/common/pkg/log.buildDir=$(shell pwd)'"
+	go install -C ./$* -gcflags $(go_flags) -asmflags $(go_flags)
 
 _proto: $(patsubst %.proto,%.pb.go,$(wildcard api/*.proto))
 

@@ -8,15 +8,10 @@ package log
 
 import (
 	"os"
-	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/rs/zerolog"
 )
-
-// To be populated at build time
-var buildDir string
 
 // Main logger instance
 var logger *zerolog.Logger
@@ -24,15 +19,6 @@ var logger *zerolog.Logger
 func Init(level zerolog.Level) {
 	if logger != nil {
 		Panic().Msg("logger re-initialization is forbidden")
-	}
-
-	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
-		// If buildDir was set, attempt to canonicalize file paths for IDEs
-		if relFile, err := filepath.Rel(buildDir, file); err == nil {
-			file = relFile
-		}
-
-		return file + ":" + strconv.Itoa(line)
 	}
 
 	l := zerolog.New(
