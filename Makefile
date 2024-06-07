@@ -19,10 +19,10 @@ _docker-%:
 # Trim build directory and GOPATH from paths registered in built binaries
 go_flags := "all=-trimpath=$(shell pwd);$(GOPATH)"
 
-_agent _controller: _%: api/supernetes.pb.go
-	go install -C ./$* -gcflags $(go_flags) -asmflags $(go_flags)
+_agent _controller: _%: src/api/supernetes.pb.go
+	go install -C src/$* -gcflags $(go_flags) -asmflags $(go_flags)
 
-_proto: $(patsubst %.proto,%.pb.go,$(wildcard api/*.proto))
+_proto: $(patsubst %.proto,%.pb.go,$(wildcard src/api/*.proto))
 
 # go mod tidy depends on the protobuf artifacts being compiled
 _tidy: _proto
@@ -30,7 +30,7 @@ _tidy: _proto
 
 _clean:
 	rm -rf bin/
-	rm -f api/*.pb.go
+	rm -f src/api/*.pb.go
 
 _interactive:
 	sh # Spawn an interactive shell inside the build container
