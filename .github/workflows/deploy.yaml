@@ -36,7 +36,7 @@ jobs:
       - name: Retrieve image digest
         run: echo "digest=$(make image-digest)" >> "$GITHUB_OUTPUT"
         id: digest
-  deploy:
+  config:
     name: Configuration
     runs-on: ubuntu-latest
     needs: image
