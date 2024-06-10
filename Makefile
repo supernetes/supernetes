@@ -35,11 +35,28 @@ _clean:
 _interactive:
 	sh # Spawn an interactive shell inside the build container
 
+IMAGE_REPO ?= ghcr.io/supernetes/controller
+IMAGE_TAG ?= $(shell git describe --tags --dirty)
+IMAGE := "$(IMAGE_REPO):$(IMAGE_TAG)"
+
 # Developer API
 agent controller proto tidy clean interactive: %: _docker-%
 
+image-build: controller
+	docker build -t $(IMAGE) -f build/Dockerfile .
+
+image-push: image-build
+ifneq ($(findstring dirty,$(IMAGE_TAG)),)
+	$(error will not push build from dirty working tree)
+endif
+	docker push $(IMAGE)
+
+image-digest:
+	$(warning retrieving digest for image: $(IMAGE))
+	@docker inspect --format='{{index .RepoDigests 0}}' $(IMAGE)
+
 clean:
-	docker rmi -f supernetes-build
+	docker rmi -f supernetes-build $(shell docker images --filter=reference="$(IMAGE_REPO):*" -q)
 	docker volume rm -f supernetes-build-cache
 
-.PHONY: all agent controller proto tidy clean interactive
+.PHONY: all agent controller proto tidy clean interactive image-build image-push image-digest

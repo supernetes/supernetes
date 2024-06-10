@@ -9,10 +9,16 @@ Supernetes is an HPC bridge for your Kubernetes environment: Expose your HPC nod
 
 ## Building
 
-The build system requires (rootless) `docker` (or Podman symlinked to `docker`) and `make` to be present on your system. To build the controller and agent binaries, simply run
+The build system requires (rootless) `docker` (or Podman symlinked to `docker`), `make` and `git` to be present on your system. To build the controller and agent binaries, simply run
 
 ```shell
 make
+```
+
+To build the controller as a container image, run
+
+```shell
+make image-build
 ```
 
 To clean up any build artifacts, run
@@ -30,8 +36,8 @@ make clean
 - [x] Connection from HPC agent to K8s controller
   - [ ] Authentication
   - [ ] Encryption
-- [ ] Container image packaging with GHCR
-- [ ] Kustomization for deployment with Flux
+- [x] Container image packaging with GHCR
+- [x] Kustomization for deployment with Flux
 - [ ] API for fetching nodes from HPC environment
 - [x] Implement [Virtual Kubelet `node` API](https://pkg.go.dev/github.com/virtual-kubelet/virtual-kubelet/node)
 - [ ] Implement VK pod operations
