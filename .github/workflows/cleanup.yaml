@@ -3,10 +3,10 @@ on:
     branches:
       - master
 
-name: Deploy
+name: Cleanup
 jobs:
   cleanup:
-    name: Cleanup
+    name: Configuration
     runs-on: ubuntu-latest
     steps:
       - name: Check out sources
@@ -20,13 +20,17 @@ jobs:
           repository: supernetes/deploy
           path: deploy
           fetch-depth: 0
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
       - name: Prune stale deploy branches
         run: |
           _source_branches=($(for b in $(git -C supernetes branch -r | grep -v -- ' -> '); do echo "${b##origin/}"; done))
           _deploy_branches=($(for b in $(git -C deploy branch -r | grep -v -- ' -> '); do echo "${b##origin/}"; done))
           _stale_branches=($(comm -z -13  \
             <(printf '%s\0' "${_source_branches[@]}" | sort -z) \
-            <(printf '%s\0' "${_deploy_branches[@]}" | sort -z)))
+            <(printf '%s\0' "${_deploy_branches[@]}" | sort -z))) 2> /dev/null
+          echo "Source branches: ${_source_branches[@]}"
+          echo "Deploy branches: ${_deploy_branches[@]}"
+          echo "Stale  branches: ${_stale_branches[@]}"
           if [ "${#_stale_branches[@]}" -gt 0 ]; then
             git -C deploy push -d origin "${_stale_branches[@]}"
           fi
