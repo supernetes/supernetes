@@ -25,9 +25,9 @@ jobs:
         run: |
           _source_branches=($(for b in $(git -C supernetes branch -r | grep -v -- ' -> '); do echo "${b##origin/}"; done))
           _deploy_branches=($(for b in $(git -C deploy branch -r | grep -v -- ' -> '); do echo "${b##origin/}"; done))
-          _stale_branches=($(comm -z -13  \
-            <(printf '%s\0' "${_source_branches[@]}" | sort -z) \
-            <(printf '%s\0' "${_deploy_branches[@]}" | sort -z))) 2> /dev/null
+          _stale_branches=($(comm -13 \
+            <(printf '%s\n' "${_source_branches[@]}" | sort) \
+            <(printf '%s\n' "${_deploy_branches[@]}" | sort)))
           echo "Source branches: ${_source_branches[@]}"
           echo "Deploy branches: ${_deploy_branches[@]}"
           echo "Stale  branches: ${_stale_branches[@]}"
