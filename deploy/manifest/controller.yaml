@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supernetes-controller
+  namespace: supernetes
+spec:
+  replicas: 1 # Multiple replicas not yet supported
+  selector:
+    matchLabels:
+      app: supernetes
+  template:
+    metadata:
+      labels:
+        app: supernetes
+    spec:
+      containers:
+        - name: controller
+          image: ghcr.io/supernetes/controller
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true

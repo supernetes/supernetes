@@ -12,5 +12,12 @@ jobs:
     steps:
       - name: Check out sources
         uses: actions/checkout@v4
+      - name: Use Docker in rootless mode
+        uses: ScribeMD/rootless-docker@0.2.2
+      - name: Cache Docker volumes
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/docker/volumes
+          key: docker-volumes-${{ runner.arch }}-${{ hashFiles('**/go.sum') }}
       - name: Run make
         run: make

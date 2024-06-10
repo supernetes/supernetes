@@ -1,0 +1,32 @@
+on:
+  push:
+    branches:
+      - master
+
+name: Deploy
+jobs:
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+        with:
+          path: supernetes
+          fetch-depth: 0
+      - name: Check out deployment repository
+        uses: actions/checkout@v4
+        with:
+          repository: supernetes/deploy
+          path: deploy
+          fetch-depth: 0
+      - name: Prune stale deploy branches
+        run: |
+          _source_branches=($(for b in $(git -C supernetes branch -r | grep -v -- ' -> '); do echo "${b##origin/}"; done))
+          _deploy_branches=($(for b in $(git -C deploy branch -r | grep -v -- ' -> '); do echo "${b##origin/}"; done))
+          _stale_branches=($(comm -z -13  \
+            <(printf '%s\0' "${_source_branches[@]}" | sort -z) \
+            <(printf '%s\0' "${_deploy_branches[@]}" | sort -z)))
+          if [ "${#_stale_branches[@]}" -gt 0 ]; then
+            git -C deploy push -d origin "${_stale_branches[@]}"
+          fi
