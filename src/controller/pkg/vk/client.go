@@ -13,12 +13,11 @@ import (
 
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"k8s.io/client-go/kubernetes"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func newCoreV1Interface() (corev1.CoreV1Interface, error) {
+func newK8sInterface() (kubernetes.Interface, error) {
 	kubecfg, err := loadInClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load in-cluster configuration: %v", err)
@@ -36,7 +35,7 @@ func newCoreV1Interface() (corev1.CoreV1Interface, error) {
 		return nil, fmt.Errorf("creating K8s client failed: %v", err)
 	}
 
-	return k8sClient.CoreV1(), nil
+	return k8sClient, nil
 }
 
 func loadInClusterConfig() (*rest.Config, error) {

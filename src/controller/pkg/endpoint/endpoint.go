@@ -13,7 +13,7 @@ import (
 
 	"github.com/jhump/grpctunnel"
 	"github.com/jhump/grpctunnel/tunnelpb"
-	"github.com/supernetes/supernetes/api"
+	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/controller/pkg/config"
 	"google.golang.org/grpc"
@@ -21,16 +21,18 @@ import (
 
 // Endpoint represents the network endpoint that remote agents connect to.
 type Endpoint interface {
-	Client() api.AgentClient
+	Node() api.NodeApiClient
+	Workload() api.WorkloadApiClient
 	Close()
 }
 
 // endpoint implements the Endpoint interface
 type endpoint struct {
-	client     api.AgentClient
-	closing    atomic.Bool
-	grpcServer *grpc.Server
-	handler    *grpctunnel.TunnelServiceHandler
+	nodeClient     api.NodeApiClient
+	workloadClient api.WorkloadApiClient
+	closing        atomic.Bool
+	grpcServer     *grpc.Server
+	handler        *grpctunnel.TunnelServiceHandler
 }
 
 // Compile-time type check
@@ -65,7 +67,8 @@ func Serve(config *config.Controller) (Endpoint, error) {
 	// TODO: Potentially, if Cilium is able to do TLS termination and apply L7 logic to gRPC traffic, we could
 	//  also just route different agents (HPC environments) to different controller instances -> better scalability
 
-	srv.client = api.NewAgentClient(srv.handler.AsChannel())
+	srv.nodeClient = api.NewNodeApiClient(srv.handler.AsChannel())
+	srv.workloadClient = api.NewWorkloadApiClient(srv.handler.AsChannel())
 
 	// Register reverse tunnel handler to a server that the agents can connect to
 	srv.grpcServer = grpc.NewServer()
@@ -98,9 +101,13 @@ func (s *endpoint) serve(port uint16) error {
 	return nil
 }
 
-// Client returns the API client for sending RPCs to the agents
-func (s *endpoint) Client() api.AgentClient {
-	return s.client
+// Node returns the API client for sending RPCs to the agents
+func (s *endpoint) Node() api.NodeApiClient {
+	return s.nodeClient
+}
+
+func (s *endpoint) Workload() api.WorkloadApiClient {
+	return s.workloadClient
 }
 
 // Close disconnects all clients and stops the endpoint

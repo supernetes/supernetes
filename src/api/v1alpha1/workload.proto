@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: MPL-2.0
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+syntax = "proto3";
+
+package supernetes;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "module github.com/supernetes/supernetes/api/v1alpha1";
+
+// Supernetes workload management API
+service WorkloadApi {
+  rpc Create (Workload) returns (google.protobuf.Empty);
+  rpc Update (Workload) returns (google.protobuf.Empty);
+  rpc Delete (Workload) returns (google.protobuf.Empty);
+  rpc Get (WorkloadMeta) returns (Workload);
+  rpc GetStatus (WorkloadMeta) returns (WorkloadStatus);
+  rpc GetWorkloads (google.protobuf.Empty) returns (stream Workload);
+}
+
+// metav1.ObjectMeta-style metadata description for workloads
+message WorkloadMeta {
+  string name = 1;
+}
+
+// Data description for workloads, similar to `spec` in Kubernetes resource definitions
+message WorkloadSpec {
+  string image = 1;
+}
+
+// Describes all states a workload can be in during its lifecycle
+// Roughly corresponds to corev1.PodPhase for simpler compatibility
+enum WorkloadPhase {
+  Pending = 0;
+  Running = 1;
+  Succeeded = 2;
+  Failed = 3;
+  Unknown = 4;
+}
+
+// Status description for workloads, similar to `status` in Kubernetes resource definitions
+message WorkloadStatus {
+  WorkloadPhase phase = 1;
+  string std_out = 2; // TODO: Delta updates for verbose workloads?
+  string std_err = 3;
+}
+
+// Workload describes a containerized HPC-deployable resource
+message Workload {
+  WorkloadMeta meta = 1;
+  WorkloadSpec spec = 2;
+  WorkloadStatus status = 3;
+}

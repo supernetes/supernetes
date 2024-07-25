@@ -8,6 +8,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,11 +17,12 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
-	"github.com/supernetes/supernetes/api"
+	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/controller/pkg/config"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -61,14 +64,28 @@ func main() {
 done:
 	for {
 		log.Debug().Msg("requesting list of nodes")
-		nodeList, err := ep.Client().List(context.Background(), &api.Empty{})
+		nodeList, err := ep.Node().GetNodes(context.Background(), &emptypb.Empty{})
 		if err != nil {
 			log.Err(err).Msg("")
-		}
+		} else {
+			nodes := make([]*api.Node, 0)
+			for {
+				n, err := nodeList.Recv()
+				if err != nil {
+					if errors.Is(err, io.EOF) {
+						break
+					}
 
-		log.Debug().Msg("reconciling received nodes")
-		if err := manager.Reconcile(nodeList.GetNodes()); err != nil {
-			log.Err(err).Msg("")
+					log.Fatal().Err(err).Msg("receiving nodes failed")
+				}
+
+				nodes = append(nodes, n)
+			}
+
+			log.Debug().Msg("reconciling received nodes")
+			if err := manager.Reconcile(nodes); err != nil {
+				log.Err(err).Msg("")
+			}
 		}
 
 		select {

@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: MPL-2.0
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+syntax = "proto3";
+
+package supernetes;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "module github.com/supernetes/supernetes/api/v1alpha1";
+
+// Supernetes node management API
+service NodeApi {
+  rpc GetNodes (google.protobuf.Empty) returns (stream Node);
+}
+
+// metav1.ObjectMeta-style metadata description for nodes
+message NodeMeta {
+  string name = 1;
+}
+
+// Data description for workloads, similar to `spec` in Kubernetes resource definitions
+message NodeSpec {
+  // TODO: CPUs etc.
+}
+
+// Node describes the properties of a single node in the HPC environment
+message Node {
+  NodeMeta meta = 1;
+  NodeSpec spec = 2;
+}

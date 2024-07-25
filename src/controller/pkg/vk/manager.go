@@ -9,18 +9,18 @@ package vk
 import (
 	"fmt"
 
-	"github.com/supernetes/supernetes/api"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	api "github.com/supernetes/supernetes/api/v1alpha1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // Manager manages Virtual Kubelet instances
 type Manager struct {
-	k8sInterface corev1.CoreV1Interface
+	k8sInterface kubernetes.Interface
 	instances    map[string]*instance
 }
 
 func NewManager() (*Manager, error) {
-	k8sInterface, err := newCoreV1Interface()
+	k8sInterface, err := newK8sInterface()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create K8s interface: %v", err)
 	}
@@ -38,12 +38,12 @@ func (m *Manager) Reconcile(nodeList []*api.Node) error {
 	}
 
 	for _, node := range nodeList {
-		if instance, ok := m.instances[node.Name]; ok {
+		if instance, ok := m.instances[node.Meta.Name]; ok {
 			// Existing node, still tracked
 			instance.tracked = true
 		} else {
 			// New node, spawn new instance for it
-			m.instances[node.Name] = newInstance(m.k8sInterface.Nodes(), node)
+			m.instances[node.Meta.Name] = newInstance(m.k8sInterface, node)
 		}
 	}
 

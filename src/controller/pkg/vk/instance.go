@@ -10,13 +10,13 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/supernetes/supernetes/api"
+	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // instance represents a singular Virtual Kubelet node
@@ -25,13 +25,11 @@ type instance struct {
 	cancel  func()
 }
 
-func newInstance(nodeInterface v1.NodeInterface, n *api.Node) *instance {
-	ctx, cancel := context.WithCancel(context.Background())
-
+func newInstance(k8sInterface kubernetes.Interface, n *api.Node) *instance {
 	// TODO: This needs to be properly populated based on `n`
 	nodeCfg := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   n.Name,
+			Name:   n.Meta.Name,
 			Labels: map[string]string{"supernetes-node": "true"}, // TODO: Temporary, for easy kubectl filtering
 		},
 		Spec: corev1.NodeSpec{
@@ -63,13 +61,45 @@ func newInstance(nodeInterface v1.NodeInterface, n *api.Node) *instance {
 		},
 	}
 
+	// Set up node controller
 	// TODO: Currently the node status is externally managed, but we could consider implementing `NodeProvider` here
-	provider := &node.NaiveNodeProvider{}
-	nodeRunner, _ := node.NewNodeController(provider, nodeCfg, nodeInterface)
+	nodeProvider := &node.NaiveNodeProvider{}
+	nodeRunner, err := node.NewNodeController(nodeProvider, nodeCfg, k8sInterface.CoreV1().Nodes())
+	if err != nil {
+		log.Err(err).Msgf("creating controller for node %q failed", n.Meta.Name)
+		return nil
+	}
+
+	// Set up pod controller
+
+	//podProvider := &podInterface{}
+	//cacheTimeout := 10 * time.Second // TODO: Make configurable
+
+	//podControllerCfg := node.PodControllerConfig{
+	//	PodClient: k8sInterface.CoreV1(),
+	//	// TODO: podInformer in client-go cannot be instantiated? Generator bug?
+	//	//PodInformer:       corev1informers.NewPodInformer(k8sInterface, "", cacheTimeout, nil), // TODO: Implement, filter per-node here or use PodEventFilterFunc
+	//	EventRecorder:     nil, // TODO: Implement
+	//	Provider:          podProvider,
+	//	ConfigMapInformer: nil, // TODO: Implement
+	//	SecretInformer:    nil, // TODO: Implement
+	//	ServiceInformer:   nil, // TODO: Implement
+	//}
+
+	//podRunner, err := node.NewPodController(podControllerCfg)
+	//if err != nil {
+	//	log.Err(err).Msgf("creating pod controller for %q failed", n.Meta.Name)
+	//	return nil
+	//}
+
+	// TODO: Add timeout for detecting hangs? Go can't forcibly terminate goroutines
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start controllers
 	go func() {
-		log.Debug().Msgf("starting controller for node %q", n.Name)
+		log.Debug().Msgf("starting controller for node %q", n.Meta.Name)
 		if err := nodeRunner.Run(ctx); err != nil {
-			log.Err(err).Msgf("controller for node %q failed", n.Name)
+			log.Err(err).Msgf("running controller for node %q failed", n.Meta.Name)
 			return
 		}
 
@@ -80,21 +110,19 @@ func newInstance(nodeInterface v1.NodeInterface, n *api.Node) *instance {
 		// TODO: Maybe Supernetes should run another controller/reconciliation loop for handling virtual node pruning?
 		// TODO: Another option is the Kyverno cleanup controller (https://kyverno.io/docs/writing-policies/cleanup/)
 
-		log.Debug().Msgf("stopping controller for node %q", n.Name)
+		log.Debug().Msgf("stopping controller for node %q", n.Meta.Name)
 	}()
 
-	// setup other things
-	//podRunner, _ := node.NewPodController(...)
-
-	//go podRunner.Run(ctx)
+	// TODO: Implement
+	//go func() {
+	//	log.Debug().Msgf("starting pod controller for %q", n.Meta.Name)
+	//	if err := podRunner.Run(ctx, 1); err != nil { // TODO: 1 worker per node?
+	//		log.Err(err).Msgf("running pod controller for %q failed", n.Meta.Name)
+	//		return
+	//	}
 	//
-	//select {
-	//case <-podRunner.Ready():
-	//case <-podRunner.Done():
-	//}
-	//if podRunner.Err() != nil {
-	//	// handle error
-	//}
+	//	log.Debug().Msgf("stopping pod controller for %q", n.Meta.Name)
+	//}()
 
 	return &instance{
 		tracked: true, // Newly created instances are always tracked

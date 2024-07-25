@@ -7,24 +7,24 @@
 package server
 
 import (
-	"context"
 	"math/rand"
 	"time"
 
 	"github.com/goombaio/namegenerator"
-	"github.com/supernetes/supernetes/api"
+	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // server is used to implement supernetes.NodeApiServer
 type server struct {
-	api.UnimplementedAgentServer
+	api.UnimplementedNodeApiServer
 	generator         namegenerator.Generator
 	changeProbability float32
 	nodes             []string
 }
 
-func NewServer(nodeCount int, changeProb float32) api.AgentServer {
+func NewServer(nodeCount int, changeProb float32) api.NodeApiServer {
 	nodes := make([]string, nodeCount)
 
 	generator := namegenerator.NewNameGenerator(time.Now().UTC().UnixNano())
@@ -39,7 +39,7 @@ func NewServer(nodeCount int, changeProb float32) api.AgentServer {
 	}
 }
 
-func (s *server) List(_ context.Context, _ *api.Empty) (*api.NodeList, error) {
+func (s *server) GetNodes(_ *emptypb.Empty, a api.NodeApi_GetNodesServer) error {
 	log.Debug().Msg("received node list request")
 
 	for i := 0; i < len(s.nodes); i++ {
@@ -50,15 +50,21 @@ func (s *server) List(_ context.Context, _ *api.Empty) (*api.NodeList, error) {
 
 	// TODO: Just a dummy implementation for now
 	log.Debug().Msgf("sending node list: %v", s.nodes)
-	return toNodeList(s.nodes), nil
-}
 
-func toNodeList(names []string) *api.NodeList {
-	nodes := make([]*api.Node, 0, len(names))
-
-	for _, n := range names {
-		nodes = append(nodes, &api.Node{Name: n})
+	for _, n := range s.nodes {
+		if err := a.Send(toNode(n)); err != nil {
+			return err
+		}
 	}
 
-	return &api.NodeList{Nodes: nodes}
+	return nil
+}
+
+func toNode(name string) *api.Node {
+	return &api.Node{
+		Meta: &api.NodeMeta{
+			Name: name,
+		},
+		Spec: &api.NodeSpec{},
+	}
 }

@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
 	"github.com/supernetes/supernetes/agent/pkg/server"
-	"github.com/supernetes/supernetes/api"
+	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -45,7 +45,7 @@ func main() {
 	// Register services for reverse tunnels
 	tunnelServer := grpctunnel.NewReverseTunnelServer(tunnelpb.NewTunnelServiceClient(conn))
 	agentServer := server.NewServer(10, 0.1)
-	api.RegisterAgentServer(tunnelServer, agentServer)
+	api.RegisterNodeApiServer(tunnelServer, agentServer)
 
 	controllerDone := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
