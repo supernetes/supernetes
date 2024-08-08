@@ -7,8 +7,7 @@
 package server
 
 import (
-	"math/rand"
-	"time"
+	"fmt"
 
 	"github.com/goombaio/namegenerator"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
@@ -27,13 +26,17 @@ type server struct {
 func NewServer(nodeCount int, changeProb float32) api.NodeApiServer {
 	nodes := make([]string, nodeCount)
 
-	generator := namegenerator.NewNameGenerator(time.Now().UTC().UnixNano())
+	//generator := namegenerator.NewNameGenerator(time.Now().UTC().UnixNano())
+	//for i := 0; i < nodeCount; i++ {
+	//	nodes[i] = generator.Generate()
+	//}
+
 	for i := 0; i < nodeCount; i++ {
-		nodes[i] = generator.Generate()
+		nodes[i] = fmt.Sprintf("test%d", i)
 	}
 
 	return &server{
-		generator:         generator,
+		generator:         nil,
 		changeProbability: changeProb,
 		nodes:             nodes,
 	}
@@ -42,11 +45,11 @@ func NewServer(nodeCount int, changeProb float32) api.NodeApiServer {
 func (s *server) GetNodes(_ *emptypb.Empty, a api.NodeApi_GetNodesServer) error {
 	log.Debug().Msg("received node list request")
 
-	for i := 0; i < len(s.nodes); i++ {
-		if rand.Float32() < s.changeProbability {
-			s.nodes[i] = s.generator.Generate()
-		}
-	}
+	//for i := 0; i < len(s.nodes); i++ {
+	//	if rand.Float32() < s.changeProbability {
+	//		s.nodes[i] = s.generator.Generate()
+	//	}
+	//}
 
 	// TODO: Just a dummy implementation for now
 	log.Debug().Msgf("sending node list: %v", s.nodes)

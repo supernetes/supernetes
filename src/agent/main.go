@@ -44,7 +44,7 @@ func main() {
 
 	// Register services for reverse tunnels
 	tunnelServer := grpctunnel.NewReverseTunnelServer(tunnelpb.NewTunnelServiceClient(conn))
-	agentServer := server.NewServer(10, 0.1)
+	agentServer := server.NewServer(1, 0.1)
 	api.RegisterNodeApiServer(tunnelServer, agentServer)
 
 	controllerDone := make(chan struct{})

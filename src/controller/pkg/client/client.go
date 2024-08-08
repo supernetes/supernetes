@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-package vk
+package client
 
 import (
 	"errors"
@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func newK8sInterface() (kubernetes.Interface, error) {
+func NewK8sClient() (kubernetes.Interface, error) {
 	kubecfg, err := loadInClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load in-cluster configuration: %v", err)
