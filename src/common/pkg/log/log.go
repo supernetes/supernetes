@@ -21,11 +21,14 @@ func Init(level zerolog.Level) {
 		Panic().Msg("logger re-initialization is forbidden")
 	}
 
-	l := zerolog.New(
-		zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.DateTime},
-	).Level(level).With().Timestamp().Caller().Logger()
-
+	l := baseLogger(level).Caller().Logger()
 	logger = &l
+}
+
+func baseLogger(level zerolog.Level) zerolog.Context {
+	return zerolog.New(
+		zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.DateTime},
+	).Level(level).With().Timestamp()
 }
 
 func getLogger() *zerolog.Logger {
@@ -45,3 +48,6 @@ func Error() *zerolog.Event        { return getLogger().Error() }
 func Err(err error) *zerolog.Event { return getLogger().Err(err) }
 func Fatal() *zerolog.Event        { return getLogger().Fatal() }
 func Panic() *zerolog.Event        { return getLogger().Panic() }
+
+// Scoped logger with custom fields
+func Scoped() zerolog.Context { return getLogger().With() }

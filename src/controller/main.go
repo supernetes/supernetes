@@ -19,7 +19,9 @@ import (
 	"github.com/spf13/pflag"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
+	"github.com/supernetes/supernetes/controller/pkg/client"
 	"github.com/supernetes/supernetes/controller/pkg/config"
+	"github.com/supernetes/supernetes/controller/pkg/controller"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -54,12 +56,18 @@ func main() {
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 
-	manager, err := vk.NewManager()
+	k8sClient, err := client.NewK8sClient()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create manager")
+		log.Fatal().Err(err).Msg("failed to create K8s client")
 	}
+
+	if err := vk.DisableKubeProxy(k8sClient); err != nil {
+		log.Fatal().Err(err).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
+	}
+
+	manager := controller.NewManager(k8sClient)
 
 done:
 	for {
