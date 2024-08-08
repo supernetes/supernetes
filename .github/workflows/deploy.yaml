@@ -17,7 +17,9 @@ jobs:
       - name: Check out sources
         uses: actions/checkout@v4
         with:
+          # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
+          filter: tree:0
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
