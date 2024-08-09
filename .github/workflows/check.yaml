@@ -37,6 +37,13 @@ jobs:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
           filter: tree:0
+      - name: Use Docker in rootless mode
+        uses: ScribeMD/rootless-docker@0.2.2
+      - name: Cache Docker volumes
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/docker/volumes
+          key: docker-volumes-${{ runner.arch }}-${{ hashFiles('**/go.sum') }}
       - name: Run make tidy
         run: make tidy
       - name: Check changed files
@@ -84,6 +91,13 @@ jobs:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
           filter: tree:0
+      - name: Use Docker in rootless mode
+        uses: ScribeMD/rootless-docker@0.2.2
+      - name: Cache Docker volumes
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/docker/volumes
+          key: docker-volumes-${{ runner.arch }}-${{ hashFiles('**/go.sum') }}
       - name: Compile protobuf artifacts
         run: make proto
       - name: Run golangci-lint
