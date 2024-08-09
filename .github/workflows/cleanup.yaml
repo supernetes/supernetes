@@ -1,36 +1,24 @@
 on:
-  push:
-    branches:
-      - master
+  delete: # Branch or tag deletion
+  pull_request:
+    types:
+      - closed # PR closed (whether merged or not)
 
 name: Cleanup
 jobs:
   cleanup:
     name: Configuration
     runs-on: ubuntu-latest
+    if: github.event.ref_type != 'tag' # Ignore tags for now
+    env:
+      BRANCH_NAME: ${{ github.event.ref || format('pull-{0}', github.event.number) }}
     steps:
-      - name: Check out sources
-        uses: actions/checkout@v4
-        with:
-          path: supernetes
-          fetch-depth: 0
       - name: Check out deployment repository
         uses: actions/checkout@v4
         with:
           repository: supernetes/deploy
-          path: deploy
           fetch-depth: 0
           ssh-key: ${{ secrets.DEPLOY_KEY }}
-      - name: Prune stale deploy branches
+      - name: Prune stale deploy branch
         run: |
-          _source_branches=($(for b in $(git -C supernetes branch -r | grep -v -- ' -> '); do echo "${b##origin/}"; done))
-          _deploy_branches=($(for b in $(git -C deploy branch -r | grep -v -- ' -> '); do echo "${b##origin/}"; done))
-          _stale_branches=($(comm -13 \
-            <(printf '%s\n' "${_source_branches[@]}" | sort) \
-            <(printf '%s\n' "${_deploy_branches[@]}" | sort)))
-          echo "Source branches: ${_source_branches[@]}"
-          echo "Deploy branches: ${_deploy_branches[@]}"
-          echo "Stale  branches: ${_stale_branches[@]}"
-          if [ "${#_stale_branches[@]}" -gt 0 ]; then
-            git -C deploy push -d origin "${_stale_branches[@]}"
-          fi
+          git push -d origin "$BRANCH_NAME" ||:

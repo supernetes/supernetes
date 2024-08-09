@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: image
     env:
-      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+      BRANCH_NAME: ${{ (github.head_ref && format('pull-{0}', github.event.number)) || github.ref_name }}
     steps:
       - name: Check out sources
         uses: actions/checkout@v4
