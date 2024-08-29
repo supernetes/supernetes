@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/supernetes/supernetes/common/pkg/log"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -26,6 +27,11 @@ func DisableKubeProxy(k8sClient kubernetes.Interface) error {
 		[]byte("{\"spec\":{\"template\":{\"spec\":{\"affinity\":{\"nodeAffinity\":{\"requiredDuringSchedulingIgnoredDuringExecution\":{\"nodeSelectorTerms\":[{\"matchExpressions\":[{\"key\":\"type\",\"operator\":\"NotIn\",\"values\":[\"virtual-kubelet\"]}]}]}}}}}}}"),
 		metav1.PatchOptions{},
 	)
+
+	if apierrors.IsNotFound(err) {
+		log.Debug().Msg("kube-proxy DaemonSet not deployed, ignoring")
+		return nil
+	}
 
 	return errors.Wrap(err, "patching kube-proxy DaemonSet failed")
 }

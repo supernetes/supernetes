@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - manifest/controller.yaml
   - manifest/namespace.yaml
+  - manifest/rbac.yaml
