@@ -1,6 +1,7 @@
-all: agent controller
+all: agent controller config
 
-_docker-%:
+_docker: # Force target for pattern rule phony
+_docker-%: _docker
 	docker build -t supernetes-build .
 	docker run --rm --init $(if $(strip $(CI)),,-it) \
 		-e CGO_ENABLED=0 \
@@ -22,6 +23,9 @@ go_flags := "all=-trimpath=$(shell pwd);$(GOPATH)"
 _agent _controller: _%: src/api/v1alpha1/node.pb.go src/api/v1alpha1/workload.pb.go
 	go install -C src/$* -gcflags $(go_flags) -asmflags $(go_flags)
 
+_config: _%:
+	go install -C src/$* -gcflags $(go_flags) -asmflags $(go_flags)
+
 _proto: $(patsubst %.proto,%.pb.go,$(wildcard src/api/*/*.proto))
 
 # go mod tidy depends on the protobuf artifacts being compiled
@@ -40,7 +44,7 @@ IMAGE_TAG ?= $(shell git describe --tags --dirty)
 IMAGE := "$(IMAGE_REPO):$(IMAGE_TAG)"
 
 # Developer API
-agent controller proto tidy clean interactive: %: _docker-%
+agent controller config proto tidy clean interactive: %: _docker-%
 
 image-build: controller
 	docker build -t $(IMAGE) -f build/Dockerfile .
@@ -59,4 +63,5 @@ clean:
 	docker rmi -f supernetes-build $(shell docker images --filter=reference="$(IMAGE_REPO):*" -q)
 	docker volume rm -f supernetes-build-cache
 
-.PHONY: all agent controller proto tidy clean interactive image-build image-push image-digest
+# All directly invoked targets are phony, Make still checks dependencies for %.pb.go etc. as desired
+.PHONY: all $(MAKECMDGOALS)

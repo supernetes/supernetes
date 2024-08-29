@@ -11,7 +11,7 @@ import (
 
 	"github.com/goombaio/namegenerator"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/common/pkg/log"
+	"github.com/supernetes/supernetes/util/pkg/log"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 

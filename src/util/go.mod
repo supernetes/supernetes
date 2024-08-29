@@ -1,4 +1,4 @@
-module github.com/supernetes/supernetes/common
+module github.com/supernetes/supernetes/util
 
 go 1.22.3
 

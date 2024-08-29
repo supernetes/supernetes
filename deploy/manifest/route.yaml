@@ -1,0 +1,13 @@
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: supernetes
+  namespace: supernetes
+spec:
+  parentRefs:
+    - name: supernetes
+      sectionName: grpc
+  rules:
+    - backendRefs:
+        - name: supernetes
+          port: 40404

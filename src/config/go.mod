@@ -1,24 +1,23 @@
-module github.com/supernetes/supernetes/agent
+module github.com/supernetes/supernetes/config
 
 go 1.23.1
 
 require (
-	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
-	github.com/jhump/grpctunnel v0.3.0
+	github.com/lithammer/dedent v1.1.0
+	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
-	github.com/supernetes/supernetes/api v0.0.0
-	github.com/supernetes/supernetes/config v0.0.0
 	github.com/supernetes/supernetes/util v0.0.0
-	google.golang.org/grpc v1.64.0
-	google.golang.org/protobuf v1.34.2
+	k8s.io/api v0.31.1
+	k8s.io/apimachinery v0.31.1
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
-	github.com/fullstorydev/grpchan v1.1.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
@@ -30,21 +29,15 @@ require (
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.31.1 // indirect
-	k8s.io/apimachinery v0.31.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 replace (
-	github.com/supernetes/supernetes/api v0.0.0 => ../api
-	github.com/supernetes/supernetes/config v0.0.0 => ../config
 	github.com/supernetes/supernetes/util v0.0.0 => ../util
 	k8s.io/api => k8s.io/api v0.30.0 // k8s.io/api/resource/v1alpha2 needed by k8s.io/client-go/kubernetes/scheme
 )

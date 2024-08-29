@@ -15,43 +15,44 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/common/pkg/log"
+	suconfig "github.com/supernetes/supernetes/config/pkg/config"
 	"github.com/supernetes/supernetes/controller/pkg/client"
-	"github.com/supernetes/supernetes/controller/pkg/config"
 	"github.com/supernetes/supernetes/controller/pkg/controller"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
+	"github.com/supernetes/supernetes/util/pkg/log"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
-	port     uint16
-	logLevel string
+	logLevel   string
+	configPath string
 )
 
 func main() {
-	// TODO: Implement full CLI with Cobra in `cmd`
-	pflag.Uint16VarP(&port, "port", "p", 40404, "Server port")
 	pflag.StringVarP(&logLevel, "log-level", "l", "trace", "Log level") // TODO: Change to "info"
+	pflag.StringVarP(&configPath, "config", "c", "", "path to controller configuration file (mandatory)")
 	pflag.Parse()
 
-	level, err := zerolog.ParseLevel(logLevel)
-	log.Init(level) // `level` is always well-defined
-	if err != nil {
-		log.Warn().Err(err).Msg("parsing log level failed")
+	log.Init(logLevel)
+
+	// Configuration file path must be provided
+	if len(configPath) == 0 {
+		pflag.Usage()
+		os.Exit(1)
 	}
 
-	conf := &config.Controller{
-		Port: port,
-	}
+	log.Debug().Str("path", configPath).Msg("reading configuration file")
+	configBytes, err := os.ReadFile(configPath)
+	log.FatalErr(err).Str("path", configPath).Msg("unable to read configuration file")
 
-	ep, err := endpoint.Serve(conf)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create endpoint")
-	}
+	log.Debug().Msg("decoding configuration file")
+	config, err := suconfig.Decode[suconfig.ControllerConfig](configBytes)
+	log.FatalErr(err).Msg("decoding configuration file failed")
+
+	ep := endpoint.Serve(config)
 	defer ep.Close()
 
 	done := make(chan os.Signal, 1)
@@ -59,13 +60,9 @@ func main() {
 	ticker := time.NewTicker(5 * time.Second)
 
 	k8sClient, err := client.NewK8sClient()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create K8s client")
-	}
+	log.FatalErr(err).Msg("failed to create K8s client")
 
-	if err := vk.DisableKubeProxy(k8sClient); err != nil {
-		log.Fatal().Err(err).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
-	}
+	log.FatalErr(vk.DisableKubeProxy(k8sClient)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
 
 	manager := controller.NewManager(k8sClient)
 
