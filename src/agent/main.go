@@ -8,6 +8,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,23 +22,41 @@ import (
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
 	serverAddr string
+	useTls     bool
 )
 
 func main() {
 	// TODO: Implement full CLI with Cobra in `cmd`
 	pflag.StringVarP(&serverAddr, "server", "s", "localhost:40404", "Address of server endpoint")
+	pflag.BoolVar(&useTls, "tls", true, "Use TLS to connect to server endpoint")
 	pflag.Parse()
 
 	log.Init(zerolog.TraceLevel)
 	log.Info().Msg("starting dummy agent")
 
 	log.Info().Msgf("connecting to server %q", serverAddr)
-	conn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials())) // TODO: TLS
+
+	var transportCredentials credentials.TransportCredentials
+	if useTls {
+		certPool, err := x509.SystemCertPool()
+		if err != nil {
+			log.Fatal().Err(err).Msg("unable to load system certificate pool")
+		}
+
+		transportCredentials = credentials.NewTLS(&tls.Config{
+			RootCAs: certPool,
+		})
+	} else {
+		transportCredentials = insecure.NewCredentials()
+	}
+
+	conn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(transportCredentials))
 	if err != nil {
 		log.Fatal().Msgf("failed to connect: %v", err)
 	}

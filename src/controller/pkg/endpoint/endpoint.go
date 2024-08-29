@@ -7,10 +7,12 @@
 package endpoint
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync/atomic"
 
+	"github.com/fullstorydev/grpchan"
 	"github.com/jhump/grpctunnel"
 	"github.com/jhump/grpctunnel/tunnelpb"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
@@ -72,7 +74,11 @@ func Serve(config *config.Controller) (Endpoint, error) {
 
 	// Register reverse tunnel handler to a server that the agents can connect to
 	srv.grpcServer = grpc.NewServer()
-	tunnelpb.RegisterTunnelServiceServer(srv.grpcServer, srv.handler.Service())
+
+	// TODO: Interceptor test
+	test := grpchan.WithInterceptor(srv.grpcServer, unaryInterceptor, streamInterceptor)
+
+	tunnelpb.RegisterTunnelServiceServer(test, srv.handler.Service())
 
 	go func() {
 		// Start serving the endpoint
@@ -84,6 +90,27 @@ func Serve(config *config.Controller) (Endpoint, error) {
 	}()
 
 	return srv, nil
+}
+
+// TODO: Temporary, for logging only
+func unaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	log.Debug().Fields(map[string]interface{}{
+		"req":     req,
+		"info":    info,
+		"handler": handler,
+	}).Msg("grpc: intercepted unary message")
+	return handler(ctx, req)
+}
+
+// TODO: Temporary, for logging only
+func streamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	log.Debug().Fields(map[string]interface{}{
+		"srv":     srv,
+		"ss":      ss,
+		"info":    info,
+		"handler": handler,
+	}).Msg("grpc: intercepted stream")
+	return handler(srv, ss)
 }
 
 // serve synchronously serves the endpoint on the given port
