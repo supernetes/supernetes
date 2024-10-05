@@ -16,13 +16,22 @@ import (
 // Main logger instance
 var logger *zerolog.Logger
 
-func Init(level zerolog.Level) {
+func Init(levelStr string) {
 	if logger != nil {
 		Panic().Msg("logger re-initialization is forbidden")
 	}
 
+	level, err := zerolog.ParseLevel(levelStr)
+	if err != nil {
+		level = zerolog.FatalLevel
+	}
+
 	l := baseLogger(level).Caller().Logger()
 	logger = &l
+
+	if err != nil {
+		Fatal().Msgf("invalid log level %q", levelStr)
+	}
 }
 
 func baseLogger(level zerolog.Level) zerolog.Context {
@@ -33,7 +42,7 @@ func baseLogger(level zerolog.Level) zerolog.Context {
 
 func getLogger() *zerolog.Logger {
 	if logger == nil {
-		Init(zerolog.PanicLevel)
+		Init("panic")
 		Panic().Msg("attempt to log with uninitialized logger")
 	}
 
@@ -47,7 +56,13 @@ func Warn() *zerolog.Event         { return getLogger().Warn() }
 func Error() *zerolog.Event        { return getLogger().Error() }
 func Err(err error) *zerolog.Event { return getLogger().Err(err) }
 func Fatal() *zerolog.Event        { return getLogger().Fatal() }
-func Panic() *zerolog.Event        { return getLogger().Panic() }
+func FatalErr(err error) *zerolog.Event {
+	if err == nil {
+		return nil // No-op if err is nil
+	}
+	return Fatal().Err(err)
+}
+func Panic() *zerolog.Event { return getLogger().Panic() }
 
 // Scoped logger with custom fields
 func Scoped() zerolog.Context { return getLogger().With() }

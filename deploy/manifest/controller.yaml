@@ -16,6 +16,9 @@ spec:
       containers:
         - name: controller
           image: ghcr.io/supernetes/controller
+          args:
+            - --config
+            - /config/config.yaml
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -23,4 +26,14 @@ spec:
                 - ALL
             readOnlyRootFilesystem: true
             runAsNonRoot: true
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: config
+          secret:
+            # The configuration secret must be provided by
+            # the user, use the `config` tool to generate it
+            secretName: supernetes-config
       serviceAccountName: supernetes

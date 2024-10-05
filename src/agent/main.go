@@ -8,39 +8,54 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/jhump/grpctunnel"
 	"github.com/jhump/grpctunnel/tunnelpb"
-	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
 	"github.com/supernetes/supernetes/agent/pkg/server"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/common/pkg/log"
+	suconfig "github.com/supernetes/supernetes/config/pkg/config"
+	"github.com/supernetes/supernetes/util/pkg/log"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
 var (
-	serverAddr string
+	configPath string
 )
 
 func main() {
-	// TODO: Implement full CLI with Cobra in `cmd`
-	pflag.StringVarP(&serverAddr, "server", "s", "localhost:40404", "Address of server endpoint")
+	// TODO: Implement full CLI with Cobra in `cmd`?
+	pflag.StringVarP(&configPath, "config", "c", "", "path to agent configuration file (mandatory)")
 	pflag.Parse()
 
-	log.Init(zerolog.TraceLevel)
-	log.Info().Msg("starting dummy agent")
+	log.Init("trace")
 
-	log.Info().Msgf("connecting to server %q", serverAddr)
-	conn, err := grpc.NewClient(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials())) // TODO: TLS
-	if err != nil {
-		log.Fatal().Msgf("failed to connect: %v", err)
+	// Configuration file path must be provided
+	if len(configPath) == 0 {
+		pflag.Usage()
+		os.Exit(1)
 	}
-	defer conn.Close()
+
+	log.Debug().Str("path", configPath).Msg("reading configuration file")
+	configBytes, err := os.ReadFile(configPath)
+	log.FatalErr(err).Str("path", configPath).Msg("unable to read configuration file")
+
+	log.Debug().Msg("decoding configuration")
+	config, err := suconfig.Decode[suconfig.AgentConfig](configBytes)
+	log.FatalErr(err).Msg("decoding configuration failed")
+
+	log.Info().Msg("starting dummy agent")
+	log.Info().Msgf("connecting to endpoint %q", config.Endpoint)
+
+	conn, err := grpc.NewClient(config.Endpoint, loadCreds(&config.MTlsConfig))
+	log.FatalErr(err).Msg("failed to connect")
+	defer func() { log.FatalErr(conn.Close()).Msg("failed to close connection") }()
 
 	// Register services for reverse tunnels
 	tunnelServer := grpctunnel.NewReverseTunnelServer(tunnelpb.NewTunnelServiceClient(conn))
@@ -79,4 +94,23 @@ func main() {
 	tunnelServer.Stop()
 
 	log.Info().Msg("agent finished")
+}
+
+func loadCreds(mTlsConfig *suconfig.MTlsConfig) grpc.DialOption {
+	cert, err := tls.X509KeyPair([]byte(mTlsConfig.Cert), []byte(mTlsConfig.Key))
+	log.FatalErr(err).Msg("failed to load client key pair")
+
+	ca := x509.NewCertPool()
+	if ok := ca.AppendCertsFromPEM([]byte(mTlsConfig.Ca)); !ok {
+		log.Fatal().Msg("failed to parse CA certificate")
+	}
+
+	tlsConfig := &tls.Config{
+		MinVersion:   tls.VersionTLS13,
+		ServerName:   "supernetes.internal",
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      ca,
+	}
+
+	return grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))
 }

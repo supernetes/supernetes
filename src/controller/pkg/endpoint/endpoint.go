@@ -7,6 +7,8 @@
 package endpoint
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -14,9 +16,10 @@ import (
 	"github.com/jhump/grpctunnel"
 	"github.com/jhump/grpctunnel/tunnelpb"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/common/pkg/log"
-	"github.com/supernetes/supernetes/controller/pkg/config"
+	suconfig "github.com/supernetes/supernetes/config/pkg/config"
+	"github.com/supernetes/supernetes/util/pkg/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // Endpoint represents the network endpoint that remote agents connect to.
@@ -39,7 +42,7 @@ type endpoint struct {
 var _ Endpoint = &endpoint{}
 
 // Serve creates and serves an Endpoint according to the given configuration
-func Serve(config *config.Controller) (Endpoint, error) {
+func Serve(config *suconfig.ControllerConfig) Endpoint {
 	srv := &endpoint{}
 
 	// Create handler for reverse tunnels
@@ -71,19 +74,36 @@ func Serve(config *config.Controller) (Endpoint, error) {
 	srv.workloadClient = api.NewWorkloadApiClient(srv.handler.AsChannel())
 
 	// Register reverse tunnel handler to a server that the agents can connect to
-	srv.grpcServer = grpc.NewServer()
+	srv.grpcServer = grpc.NewServer(loadCreds(&config.MTlsConfig))
 	tunnelpb.RegisterTunnelServiceServer(srv.grpcServer, srv.handler.Service())
 
 	go func() {
 		// Start serving the endpoint
-		if err := srv.serve(config.Port); err != nil {
-			log.Fatal().Err(err).Msg("gRPC endpoint error")
-		}
-
+		log.FatalErr(srv.serve(config.Port)).Msg("gRPC endpoint error")
 		log.Debug().Msg("gRPC endpoint closed")
 	}()
 
-	return srv, nil
+	return srv
+}
+
+// loadCreds sets up TLS for a GRPC server from the given mTLS configuration
+func loadCreds(mTlsConfig *suconfig.MTlsConfig) grpc.ServerOption {
+	cert, err := tls.X509KeyPair([]byte(mTlsConfig.Cert), []byte(mTlsConfig.Key))
+	log.FatalErr(err).Msg("failed to load server key pair")
+
+	ca := x509.NewCertPool()
+	if ok := ca.AppendCertsFromPEM([]byte(mTlsConfig.Ca)); !ok {
+		log.Fatal().Msg("failed to parse CA certificate")
+	}
+
+	tlsConfig := &tls.Config{
+		MinVersion:   tls.VersionTLS13,
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.RequireAndVerifyClientCert, // Enforce mTLS
+		ClientCAs:    ca,
+	}
+
+	return grpc.Creds(credentials.NewTLS(tlsConfig))
 }
 
 // serve synchronously serves the endpoint on the given port

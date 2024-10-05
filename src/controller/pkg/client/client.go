@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/supernetes/supernetes/common/pkg/log"
+	"github.com/supernetes/supernetes/util/pkg/log"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

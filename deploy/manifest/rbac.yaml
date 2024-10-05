@@ -5,6 +5,34 @@ metadata:
   namespace: supernetes
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: supernetes
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "pods", "secrets", "services"]
+    verbs: ["list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["nodes/status"]
+    verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: supernetes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: supernetes
+subjects:
+  - kind: ServiceAccount
+    name: supernetes
+    namespace: supernetes
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: patch-kube-proxy

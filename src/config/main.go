@@ -4,8 +4,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-package config
+package main
 
-type Controller struct {
-	Port uint16
+import (
+	"os"
+
+	"github.com/supernetes/supernetes/config/cmd"
+)
+
+func main() {
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	return cmd.NewRootCommand().Execute()
 }

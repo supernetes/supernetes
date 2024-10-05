@@ -4,3 +4,5 @@ resources:
   - manifest/controller.yaml
   - manifest/namespace.yaml
   - manifest/rbac.yaml
+  - manifest/route.yaml
+  - manifest/service.yaml
