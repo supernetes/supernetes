@@ -30,6 +30,10 @@ func NewK8sClient() (kubernetes.Interface, error) {
 		}
 	}
 
+	// TODO: These need to be configurable
+	kubecfg.QPS = 100 * rest.DefaultQPS
+	kubecfg.Burst = 100 * rest.DefaultBurst
+
 	k8sClient, err := kubernetes.NewForConfig(kubecfg)
 	if err != nil {
 		return nil, fmt.Errorf("creating K8s client failed: %v", err)

@@ -57,14 +57,14 @@ func main() {
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 
 	k8sClient, err := client.NewK8sClient()
 	log.FatalErr(err).Msg("failed to create K8s client")
 
 	log.FatalErr(vk.DisableKubeProxy(k8sClient)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
 
-	manager := controller.NewManager(k8sClient)
+	manager := controller.NewManager(context.Background(), k8sClient)
 
 done:
 	for {
