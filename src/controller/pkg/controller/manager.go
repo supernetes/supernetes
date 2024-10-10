@@ -32,8 +32,10 @@ func newInstance(ctx context.Context, i vk.Instance) *instance {
 	}
 }
 
-func (i *instance) start() error {
-	return i.instance.Run(i.ctx)
+func (i *instance) start(err chan<- error) {
+	go func() {
+		err <- i.instance.Run(i.ctx)
+	}()
 }
 
 func (i *instance) stop() {
@@ -44,12 +46,18 @@ func (i *instance) stop() {
 type Manager struct {
 	k8sInterface kubernetes.Interface
 	instances    map[string]*instance
+	ctx          context.Context
+	cancel       func()
 }
 
-func NewManager(k8sInterface kubernetes.Interface) *Manager {
+func NewManager(ctx context.Context, k8sInterface kubernetes.Interface) *Manager {
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Manager{
 		k8sInterface: k8sInterface,
 		instances:    make(map[string]*instance),
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 }
 
@@ -59,21 +67,32 @@ func (m *Manager) Reconcile(nodeList []*api.Node) error {
 		i.tracked = false
 	}
 
+	errChan := make(chan error)
+	newInstances := 0
+
 	for _, node := range nodeList {
 		if i, ok := m.instances[node.Meta.Name]; ok {
 			// Existing node, still tracked
 			i.tracked = true
 		} else {
 			// New node, spawn a new instance for it
-			i := newInstance(context.Background(), vk.NewInstance(m.k8sInterface, node))
-			if err := i.start(); err != nil {
-				// TODO: Should this be fatal or not? -> Probably fatal, since then it will be tracked in restarts
-				return errors.Wrap(err, "starting instance failed")
-			}
+			i := newInstance(m.ctx, vk.NewInstance(m.k8sInterface, node))
+			i.start(errChan)
+			newInstances++
 
 			m.instances[node.Meta.Name] = i
 		}
 	}
+
+	for i := 0; i < newInstances; i++ {
+		if err := <-errChan; err != nil {
+			m.cancel()
+			return errors.Wrap(err, "starting instance failed")
+		}
+	}
+
+	// At this point everything should be running
+	close(errChan)
 
 	// Stop and remove all instances that are no longer tracked
 	for name, i := range m.instances {

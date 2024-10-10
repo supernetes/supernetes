@@ -35,7 +35,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: patch-kube-proxy
+  name: supernetes-kube-proxy
   namespace: kube-system
 rules:
   - apiGroups: ["apps"]
@@ -46,12 +46,36 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: patch-kube-proxy
+  name: supernetes-kube-proxy
   namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: patch-kube-proxy
+  name: supernetes-kube-proxy
+subjects:
+  - kind: ServiceAccount
+    name: supernetes
+    namespace: supernetes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: supernetes-node-lease
+  namespace: kube-node-lease
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: supernetes-node-lease
+  namespace: kube-node-lease
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: supernetes-node-lease
 subjects:
   - kind: ServiceAccount
     name: supernetes
