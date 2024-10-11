@@ -7,9 +7,11 @@
 package server
 
 import (
-	"fmt"
+	"regexp"
+	"slices"
 
-	"github.com/goombaio/namegenerator"
+	"github.com/pkg/errors"
+	"github.com/supernetes/supernetes/agent/pkg/scontrol"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/util/pkg/log"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -18,44 +20,46 @@ import (
 // server is used to implement supernetes.NodeApiServer
 type server struct {
 	api.UnimplementedNodeApiServer
-	generator         namegenerator.Generator
-	changeProbability float32
-	nodes             []string
 }
 
-func NewServer(nodeCount int, changeProb float32) api.NodeApiServer {
-	nodes := make([]string, nodeCount)
-
-	//generator := namegenerator.NewNameGenerator(time.Now().UTC().UnixNano())
-	//for i := 0; i < nodeCount; i++ {
-	//	nodes[i] = generator.Generate()
-	//}
-
-	for i := 0; i < nodeCount; i++ {
-		nodes[i] = fmt.Sprintf("test%d", i)
-	}
-
-	return &server{
-		generator:         nil,
-		changeProbability: changeProb,
-		nodes:             nodes,
-	}
+func NewServer() api.NodeApiServer {
+	return &server{}
 }
 
 func (s *server) GetNodes(_ *emptypb.Empty, a api.NodeApi_GetNodesServer) error {
 	log.Debug().Msg("received node list request")
 
-	//for i := 0; i < len(s.nodes); i++ {
-	//	if rand.Float32() < s.changeProbability {
-	//		s.nodes[i] = s.generator.Generate()
-	//	}
-	//}
+	partition := "standard" // TODO: Pass this from the controller
 
-	// TODO: Just a dummy implementation for now
-	log.Debug().Msgf("sending node list: %v", s.nodes)
+	nodeInfo, err := scontrol.ReadNodeInfo()
+	if err != nil {
+		return errors.WithMessage(err, "unable to read node info")
+	}
 
-	for _, n := range s.nodes {
-		if err := a.Send(toNode(n)); err != nil {
+	// TODO: Temporarily cap the number of nodes
+	pattern := `^nid001[0-9]{3}$`
+	//pattern := `^nid00100[0-9]{1}$`
+	regex := regexp.MustCompile(pattern)
+	log.Debug().Str("pattern", pattern).Msg("TODO: limiting filtered nodes with regex")
+
+	var filteredNodes []scontrol.Node
+	for _, n := range nodeInfo.Nodes {
+		if slices.Contains(n.Partitions, partition) {
+			if ok := regex.Match([]byte(n.Name)); !ok {
+				continue
+			}
+
+			filteredNodes = append(filteredNodes, n)
+		}
+	}
+
+	log.Debug().
+		Int("all", len(nodeInfo.Nodes)).
+		Int("filtered", len(filteredNodes)).
+		Msg("sending node list")
+
+	for _, n := range filteredNodes {
+		if err := a.Send(toNode(&n)); err != nil {
 			return err
 		}
 	}
@@ -63,10 +67,11 @@ func (s *server) GetNodes(_ *emptypb.Empty, a api.NodeApi_GetNodesServer) error 
 	return nil
 }
 
-func toNode(name string) *api.Node {
+// TODO: This needs to populate all available fields
+func toNode(node *scontrol.Node) *api.Node {
 	return &api.Node{
 		Meta: &api.NodeMeta{
-			Name: name,
+			Name: node.Name,
 		},
 		Spec: &api.NodeSpec{},
 	}
