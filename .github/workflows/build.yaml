@@ -8,7 +8,7 @@ name: Build
 jobs:
   build:
     name: Binaries
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out sources
         uses: actions/checkout@v4
@@ -16,12 +16,7 @@ jobs:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
           filter: tree:0
-      - name: Use Docker in rootless mode
-        uses: ScribeMD/rootless-docker@0.2.2
-      - name: Cache Docker volumes
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/docker/volumes
-          key: docker-volumes-${{ runner.arch }}-${{ hashFiles('**/go.sum') }}
+      - name: Set up runtime
+        uses: ./.github/actions/runtime
       - name: Run make
         run: make

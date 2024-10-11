@@ -8,7 +8,7 @@ name: Check
 jobs:
   conform:
     name: Conformance
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: golang:1
       options: --user 1001 # https://github.com/actions/runner/issues/2033#issuecomment-1598547465
@@ -18,6 +18,17 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+      - name: Get date
+        id: get-date
+        run: echo "date=$(date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
+      - name: Cache Golang resources
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            /go/pkg/mod
+          key: conform-${{ runner.arch }}-${{ steps.get-date.outputs.date }}
+          restore-keys: conform-${{ runner.arch }}
       - name: Fetch master branch for reference
         # The main branch detection of siderolabs/conform relies on the branch tracking the "origin" remote, see
         # https://github.com/siderolabs/conform/blob/2feadaa74eef93dd35f303582f2e82afa62a119d/cmd/conform/enforce.go#L74
@@ -29,7 +40,7 @@ jobs:
         run: conform enforce
   tidy:
     name: Module Tidiness
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out sources
         uses: actions/checkout@v4
@@ -37,13 +48,8 @@ jobs:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
           filter: tree:0
-      - name: Use Docker in rootless mode
-        uses: ScribeMD/rootless-docker@0.2.2
-      - name: Cache Docker volumes
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/docker/volumes
-          key: docker-volumes-${{ runner.arch }}-${{ hashFiles('**/go.sum') }}
+      - name: Set up runtime
+        uses: ./.github/actions/runtime
       - name: Run make tidy
         run: make tidy
       - name: Check changed files
@@ -66,7 +72,7 @@ jobs:
   # It's 2024 and https://github.com/golangci/golangci-lint/issues/828 has still not been resolved
   resolve-modules:
     name: Resolve Modules
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -80,7 +86,7 @@ jobs:
   golangci:
     name: Linting
     needs: resolve-modules
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix: ${{ fromJson(needs.resolve-modules.outputs.matrix) }}
       fail-fast: false
@@ -91,13 +97,8 @@ jobs:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
           filter: tree:0
-      - name: Use Docker in rootless mode
-        uses: ScribeMD/rootless-docker@0.2.2
-      - name: Cache Docker volumes
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/docker/volumes
-          key: docker-volumes-${{ runner.arch }}-${{ hashFiles('**/go.sum') }}
+      - name: Set up runtime
+        uses: ./.github/actions/runtime
       - name: Compile protobuf artifacts
         run: make proto
       - name: Run golangci-lint
