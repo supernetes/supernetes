@@ -8,7 +8,7 @@ name: Cleanup
 jobs:
   cleanup:
     name: Configuration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: github.event.ref_type != 'tag' # Ignore tags for now
     env:
       BRANCH_NAME: ${{ github.event.ref || format('pull-{0}', github.event.number) }}
