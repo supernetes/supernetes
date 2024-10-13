@@ -29,6 +29,14 @@ var (
 	configPath string
 )
 
+/*
+TODO: Slurm node discovery and workload dispatching
+ - scontrol show partition [standard] --json
+ - scontrol show node --json
+ - sinfo -N --json (but this produces much more output without that much more information)
+ - Helpful tool: https://mholt.github.io/json-to-go/
+*/
+
 func main() {
 	// TODO: Implement full CLI with Cobra in `cmd`?
 	pflag.StringVarP(&configPath, "config", "c", "", "path to agent configuration file (mandatory)")
@@ -59,7 +67,7 @@ func main() {
 
 	// Register services for reverse tunnels
 	tunnelServer := grpctunnel.NewReverseTunnelServer(tunnelpb.NewTunnelServiceClient(conn))
-	agentServer := server.NewServer(1, 0.1)
+	agentServer := server.NewServer()
 	api.RegisterNodeApiServer(tunnelServer, agentServer)
 
 	controllerDone := make(chan struct{})

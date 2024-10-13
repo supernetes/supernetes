@@ -3,14 +3,15 @@ module github.com/supernetes/supernetes/agent
 go 1.23.1
 
 require (
-	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/jhump/grpctunnel v0.3.0
+	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.5
 	github.com/supernetes/supernetes/api v0.0.0
 	github.com/supernetes/supernetes/config v0.0.0
 	github.com/supernetes/supernetes/util v0.0.0
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.2
+	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd
 )
 
 require (
@@ -37,7 +38,6 @@ require (
 	k8s.io/apimachinery v0.31.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
-	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
