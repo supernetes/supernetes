@@ -68,7 +68,7 @@ func (p *podProvider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	// TODO: Implement
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO CreatePod called")
+	log.Info().Msg("TODO CreatePod called")
 
 	now := metav1.NewTime(time.Now())
 	pod.Status = corev1.PodStatus{
@@ -116,7 +116,7 @@ func (p *podProvider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 	// TODO: Implement
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO UpdatePod called")
+	log.Info().Msg("TODO UpdatePod called")
 
 	p.pods[key] = pod
 
@@ -128,7 +128,7 @@ func (p *podProvider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 	// TODO: Implement
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO DeletePod called")
+	log.Info().Msg("TODO DeletePod called")
 
 	if _, ok := p.pods[key]; !ok {
 		return errdefs.NotFound("pod not found")
@@ -160,7 +160,7 @@ func (p *podProvider) GetPod(ctx context.Context, namespace, name string) (*core
 	// TODO: Implement
 	key := keyFrom(name, namespace)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO GetPod called")
+	log.Info().Msg("TODO GetPod called")
 
 	if pod, ok := p.pods[key]; ok {
 		log.Debug().Msg("pod retrieved")
@@ -175,7 +175,7 @@ func (p *podProvider) GetPodStatus(ctx context.Context, namespace, name string) 
 	// TODO: Implement
 	key := keyFrom(name, namespace)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO GetPodStatus called")
+	log.Info().Msg("TODO GetPodStatus called")
 
 	if pod, ok := p.pods[key]; ok {
 		log.Debug().Msg("pod status retrieved")
@@ -189,7 +189,7 @@ func (p *podProvider) GetPodStatus(ctx context.Context, namespace, name string) 
 func (p *podProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	// TODO: Implement
 	log := p.log
-	log.Debug().Msg("TODO GetPods called")
+	log.Info().Msg("TODO GetPods called")
 
 	var pods []*corev1.Pod
 	for _, pod := range p.pods {
