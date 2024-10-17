@@ -17,6 +17,7 @@ import (
 	"github.com/jhump/grpctunnel"
 	"github.com/jhump/grpctunnel/tunnelpb"
 	"github.com/spf13/pflag"
+	"github.com/supernetes/supernetes/agent/pkg/sbatch"
 	"github.com/supernetes/supernetes/agent/pkg/server"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	suconfig "github.com/supernetes/supernetes/config/pkg/config"
@@ -58,17 +59,27 @@ func main() {
 	config, err := suconfig.Decode[suconfig.AgentConfig](configBytes)
 	log.FatalErr(err).Msg("decoding configuration failed")
 
-	log.Info().Msg("starting dummy agent")
-	log.Info().Msgf("connecting to endpoint %q", config.Endpoint)
+	// Sanity check: this is required for Supernetes to track its own jobs
+	if !config.SlurmConfig.Filter.Partition(config.SlurmConfig.Partition) {
+		log.Fatal().Msg("Slurm partition filter must match default Slurm partition")
+	}
 
+	log.Info().Msg("starting Supernetes agent")
+
+	log.Info().Msgf("connecting to endpoint %q", config.Endpoint)
 	conn, err := grpc.NewClient(config.Endpoint, loadCreds(&config.MTlsConfig))
 	log.FatalErr(err).Msg("failed to connect")
 	defer func() { log.FatalErr(conn.Close()).Msg("failed to close connection") }()
 
+	// Create the sbatch runtime
+	runtime := sbatch.NewRuntime(&config.SlurmConfig)
+
 	// Register services for reverse tunnels
 	tunnelServer := grpctunnel.NewReverseTunnelServer(tunnelpb.NewTunnelServiceClient(conn))
-	agentServer := server.NewServer()
-	api.RegisterNodeApiServer(tunnelServer, agentServer)
+	nodeApiServer := server.NewNodeApiServer(config.SlurmConfig.Filter)
+	workloadApiServer := server.NewWorkloadServer(runtime, config.SlurmConfig.Filter)
+	api.RegisterNodeApiServer(tunnelServer, nodeApiServer)
+	api.RegisterWorkloadApiServer(tunnelServer, workloadApiServer)
 
 	controllerDone := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())

@@ -14,13 +14,15 @@ import (
 )
 
 type vkLogger struct {
-	l      zerolog.Logger
-	fields vklog.Fields
-	errors []error
+	l            zerolog.Logger
+	fields       vklog.Fields
+	errors       []error
+	clampToDebug bool
 }
 
-// VKLogger provides a Virtual Kubelet Logger-compatible logging interface
-func VKLogger(scope *zerolog.Logger) vklog.Logger {
+// VKLogger provides a Virtual Kubelet Logger-compatible logging interface. clampToDebug can be used to map Info
+// messages to be Debug messages, assuming that the log level permits Info, to decrease Virtual Kubelet verbosity.
+func VKLogger(scope *zerolog.Logger, clampToDebug bool) vklog.Logger {
 	if scope == nil {
 		scope = getLogger()
 	}
@@ -31,7 +33,8 @@ func VKLogger(scope *zerolog.Logger) vklog.Logger {
 	})
 
 	return &vkLogger{
-		l: l.With().CallerWithSkipFrameCount(4).Str("scope", "virtual-kubelet").Logger(),
+		l:            l.With().CallerWithSkipFrameCount(4).Str("scope", "virtual-kubelet").Logger(),
+		clampToDebug: clampToDebug,
 	}
 }
 
@@ -44,10 +47,20 @@ func (v *vkLogger) Debugf(s string, i ...interface{}) {
 }
 
 func (v *vkLogger) Info(i ...interface{}) {
+	if v.clampToDebug {
+		v.Debug(i...)
+		return
+	}
+
 	v.msg(v.l.Info(), fmt.Sprint(i...))
 }
 
 func (v *vkLogger) Infof(s string, i ...interface{}) {
+	if v.clampToDebug {
+		v.Debugf(s, i...)
+		return
+	}
+
 	v.msg(v.l.Info(), fmt.Sprintf(s, i...))
 }
 
@@ -122,7 +135,7 @@ func (v *vkLogger) msg(e *zerolog.Event, s string) {
 }
 
 func (v *vkLogger) copy() *vkLogger {
-	l := &vkLogger{l: v.l}
+	l := &vkLogger{l: v.l, clampToDebug: v.clampToDebug}
 
 	if v.fields != nil {
 		l.fields = make(vklog.Fields)

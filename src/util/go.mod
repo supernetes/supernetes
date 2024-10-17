@@ -3,6 +3,8 @@ module github.com/supernetes/supernetes/util
 go 1.22.3
 
 require (
+	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/zerologr v1.2.3
 	github.com/rs/zerolog v1.33.0
 	github.com/virtual-kubelet/virtual-kubelet v1.11.0
 )

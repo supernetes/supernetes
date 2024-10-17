@@ -51,17 +51,40 @@ func (k *podKey) String() string {
 
 var _ fmt.Stringer = &podKey{} // Static type assert
 
+// TODO: Virtual Kubelet, through GetPod/CreatePod/etc. basically makes sure that the pods tracked by podProvider are
+//  consistent with the API server. On startup, any pods that this contains but are not present (anymore) in the cluster
+//  will be deleted, and any pods that should be tracked will be created on startup. This means that we should consider
+//  the API server as the single source of truth instead of Slurm. That said, since jobs will also be created on the HPC
+//  side by other users interacting with Slurm directly, we need some kind of reconciliation loop that periodically
+//  requests the job list from the agent, and creates Pods based on that. Those pods will then obviously be picked up by
+//  podProvider again, but if they already contain a job ID or something, this can just update their status and not
+//  actually deploy anything.
+//
+// TODO: Another design consideration is what to do with Pod deletions. They should probably be essentially no-ops,
+//  i.e., the deletion will cause the Pod to be removed from podProvider's tracking, but the deletion request sent to
+//  the agent is just an `scancel`. Upon job reconciliation, if Slurm still tracks the job, the Pod is going to be re-
+//  created (with a "Completed") status. Once a job is actually removed from Slurm tracking, the reconciler will also
+//  remove the associated Pod.
+
 // podProvider implements the Virtual Kubelet pod lifecycle handler for Supernetes workloads
 type podProvider struct {
-	log  *zerolog.Logger
-	pods map[podKey]*corev1.Pod
+	log      *zerolog.Logger
+	pods     map[podKey]*corev1.Pod
+	notifier func(*corev1.Pod)
 }
+
+var _ node.PodNotifier = &podProvider{} // Required for async provider compliance
 
 func NewPodProvider(log *zerolog.Logger) node.PodLifecycleHandler {
 	return &podProvider{
 		log:  log,
 		pods: make(map[podKey]*corev1.Pod),
 	}
+}
+
+// NotifyPods should be called (by VK logic) before any other operations
+func (p *podProvider) NotifyPods(_ context.Context, notifier func(*corev1.Pod)) {
+	p.notifier = notifier
 }
 
 func (p *podProvider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
@@ -107,6 +130,7 @@ func (p *podProvider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	p.pods[key] = pod
+	p.notifier(pod)
 
 	log.Debug().Msg("pod created")
 	return nil
@@ -119,6 +143,7 @@ func (p *podProvider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 	log.Debug().Msg("TODO UpdatePod called")
 
 	p.pods[key] = pod
+	p.notifier(pod)
 
 	log.Debug().Msg("pod updated")
 	return nil
@@ -151,6 +176,7 @@ func (p *podProvider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	delete(p.pods, key)
+	p.notifier(pod)
 
 	log.Debug().Msg("pod deleted")
 	return nil
@@ -167,7 +193,7 @@ func (p *podProvider) GetPod(ctx context.Context, namespace, name string) (*core
 		return pod.DeepCopy(), nil
 	}
 
-	log.Error().Msg("unknown pod")
+	log.Debug().Msg("unknown pod")
 	return nil, errdefs.NotFoundf("unknown pod %q", key)
 }
 
@@ -182,7 +208,7 @@ func (p *podProvider) GetPodStatus(ctx context.Context, namespace, name string) 
 		return pod.Status.DeepCopy(), nil
 	}
 
-	log.Error().Msg("unknown pod")
+	log.Debug().Msg("unknown pod")
 	return nil, errdefs.NotFoundf("unknown pod %q", key)
 }
 

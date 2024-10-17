@@ -3,6 +3,7 @@ module github.com/supernetes/supernetes/agent
 go 1.23.1
 
 require (
+	al.essio.dev/pkg/shellescape v1.5.1
 	github.com/jhump/grpctunnel v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.5
@@ -18,6 +19,7 @@ require (
 	github.com/fullstorydev/grpchan v1.1.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/zerologr v1.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect

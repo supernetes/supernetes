@@ -10,17 +10,23 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"github.com/supernetes/supernetes/controller/pkg/client"
 	"github.com/supernetes/supernetes/util/pkg/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 // DisableKubeProxy prevents kube-proxy pods from being deployed on Virtual Kubelet nodes
-func DisableKubeProxy(k8sClient kubernetes.Interface) error {
+func DisableKubeProxy(k8sConfig *rest.Config) error {
+	k8sClient, err := client.NewK8sClient(k8sConfig)
+	if err != nil {
+		return err
+	}
+
 	log.Debug().Msg("patching kube-proxy DaemonSet to exclude type=virtual-kubelet")
-	_, err := k8sClient.AppsV1().DaemonSets("kube-system").Patch(
+	_, err = k8sClient.AppsV1().DaemonSets("kube-system").Patch(
 		context.Background(),
 		"kube-proxy",
 		types.StrategicMergePatchType,

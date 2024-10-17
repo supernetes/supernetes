@@ -28,8 +28,9 @@ func NewCmdGenerate() *cobra.Command {
 			WARNING: Existing controller and agent configuration files will be overwritten!
 
 			Example usage:
-			    $ config generate # Results in controller.yaml (K8s Secret) and agent.yaml
-			    $ config generate --secret=false # controller.yaml as plain YAML
+			    $ config generate --slurm-account project_123456789 --slurm-partition standard
+			    $ config generate ... # Results in controller.yaml (K8s Secret) and agent.yaml
+			    $ config generate --secret=false ... # controller.yaml as plain YAML
 			    $ config generate \
 			        --agent-config my-agent.yaml \
 			        --agent-endpoint supernetes.example.com:443 \
@@ -37,11 +38,15 @@ func NewCmdGenerate() *cobra.Command {
 			        --controller-port 12345 \
 			        --controller-secret-name custom-supernetes-config \
 			        --controller-secret-namespace custom-supernetes-namespace \
+					--slurm-account project_123456789 \
+					--slurm-partition standard \
+					--filter-partition '^(?:standard)|(?:bench)$' \
+					--filter-node '^nid0010[0-9]{2}$' \
 			        --cert-days-valid 365
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			options, err := flags.NewGenerateOptions(args, cmd.Flags())
-			log.FatalErr(err).Msg("failed to parse options for generate")
+			log.FatalErr(err).Msg("failed to parse options")
 			log.FatalErr(run.Generate(options)).Msg("failed to run generate")
 		},
 	}
@@ -57,8 +62,14 @@ func addGenerateFlags(fs *pflag.FlagSet, flags *run.GenerateFlags) {
 	fs.StringVarP(&flags.ControllerConfigPath, "controller-config", "c", "controller.yaml", "controller configuration file path")
 	fs.Uint16VarP(&flags.ControllerPort, "controller-port", "p", 40404, "listening port for the controller")
 	fs.BoolVarP(&flags.ControllerSecret, "controller-secret", "s", true, "output controller configuration as a Kubernetes Secret")
-	fs.StringVarP(&flags.ControllerSecretName, "controller-secret-name", "m", "supernetes-config", "name of the controller configuration Secret")
-	fs.StringVarP(&flags.ControllerSecretNamespace, "controller-secret-namespace", "n", "supernetes", "namespace of the controller configuration Secret")
+	fs.StringVar(&flags.ControllerSecretName, "controller-secret-name", "supernetes-config", "name of the controller configuration Secret")
+	fs.StringVar(&flags.ControllerSecretNamespace, "controller-secret-namespace", "supernetes", "namespace of the controller configuration Secret")
+
+	fs.StringVar(&flags.SlurmAccount, "slurm-account", "", "default Slurm partition to use for dispatching jobs")
+	fs.StringVar(&flags.SlurmPartition, "slurm-partition", "", "default Slurm partition to use for dispatching jobs")
+
+	fs.StringVar(&flags.FilterPartitionRegex, "filter-partition", "", "Regex that limits the agent to consider only specific partitions")
+	fs.StringVar(&flags.FilterNodeRegex, "filter-node", "", "Regex that limits the agent to consider only specific nodes")
 
 	fs.Uint32VarP(&flags.CertDaysValid, "cert-days-valid", "d", 3650, "validity period of the mTLS certificates in days")
 }
