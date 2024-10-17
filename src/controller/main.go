@@ -68,7 +68,7 @@ func main() {
 
 done:
 	for {
-		log.Debug().Msg("requesting list of nodes")
+		//log.Debug().Msg("requesting list of nodes")
 		nodeList, err := ep.Node().GetNodes(context.Background(), &emptypb.Empty{})
 		if err != nil {
 			log.Err(err).Msg("")
@@ -87,7 +87,7 @@ done:
 				nodes = append(nodes, n)
 			}
 
-			log.Debug().Msg("reconciling received nodes")
+			//log.Debug().Msg("reconciling received nodes")
 			if err := manager.Reconcile(nodes); err != nil {
 				log.Err(err).Msg("")
 			}

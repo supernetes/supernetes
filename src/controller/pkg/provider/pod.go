@@ -53,22 +53,42 @@ var _ fmt.Stringer = &podKey{} // Static type assert
 
 // podProvider implements the Virtual Kubelet pod lifecycle handler for Supernetes workloads
 type podProvider struct {
-	log  *zerolog.Logger
-	pods map[podKey]*corev1.Pod
+	log      *zerolog.Logger
+	pods     map[podKey]*corev1.Pod
+	notifier func(*corev1.Pod)
 }
 
+var _ node.PodNotifier = &podProvider{} // Required for async provider compliance
+
 func NewPodProvider(log *zerolog.Logger) node.PodLifecycleHandler {
-	return &podProvider{
+	provider := &podProvider{
 		log:  log,
 		pods: make(map[podKey]*corev1.Pod),
 	}
+
+	// TODO: Testing
+	log.Debug().Msg("TODO creating asdf-pod for testing")
+	provider.notifier = func(_ *corev1.Pod) {} // TODO: Temporary
+	_ = provider.CreatePod(context.TODO(), &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "asdf-pod",
+			Namespace: "default",
+		},
+	})
+
+	return provider
+}
+
+// NotifyPods should be called (by VK logic) before any other operations
+func (p *podProvider) NotifyPods(_ context.Context, notifier func(*corev1.Pod)) {
+	p.notifier = notifier
 }
 
 func (p *podProvider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	// TODO: Implement
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO CreatePod called")
+	log.Info().Msg("TODO CreatePod called")
 
 	now := metav1.NewTime(time.Now())
 	pod.Status = corev1.PodStatus{
@@ -107,6 +127,7 @@ func (p *podProvider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	p.pods[key] = pod
+	p.notifier(pod)
 
 	log.Debug().Msg("pod created")
 	return nil
@@ -116,9 +137,10 @@ func (p *podProvider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 	// TODO: Implement
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO UpdatePod called")
+	log.Info().Msg("TODO UpdatePod called")
 
 	p.pods[key] = pod
+	p.notifier(pod)
 
 	log.Debug().Msg("pod updated")
 	return nil
@@ -128,7 +150,7 @@ func (p *podProvider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 	// TODO: Implement
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO DeletePod called")
+	log.Info().Msg("TODO DeletePod called")
 
 	if _, ok := p.pods[key]; !ok {
 		return errdefs.NotFound("pod not found")
@@ -151,6 +173,7 @@ func (p *podProvider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	delete(p.pods, key)
+	p.notifier(pod)
 
 	log.Debug().Msg("pod deleted")
 	return nil
@@ -160,7 +183,7 @@ func (p *podProvider) GetPod(ctx context.Context, namespace, name string) (*core
 	// TODO: Implement
 	key := keyFrom(name, namespace)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO GetPod called")
+	log.Info().Msg("TODO GetPod called")
 
 	if pod, ok := p.pods[key]; ok {
 		log.Debug().Msg("pod retrieved")
@@ -175,7 +198,7 @@ func (p *podProvider) GetPodStatus(ctx context.Context, namespace, name string) 
 	// TODO: Implement
 	key := keyFrom(name, namespace)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO GetPodStatus called")
+	log.Info().Msg("TODO GetPodStatus called")
 
 	if pod, ok := p.pods[key]; ok {
 		log.Debug().Msg("pod status retrieved")
@@ -189,7 +212,7 @@ func (p *podProvider) GetPodStatus(ctx context.Context, namespace, name string) 
 func (p *podProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	// TODO: Implement
 	log := p.log
-	log.Debug().Msg("TODO GetPods called")
+	log.Info().Msg("TODO GetPods called")
 
 	var pods []*corev1.Pod
 	for _, pod := range p.pods {
