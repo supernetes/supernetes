@@ -22,6 +22,7 @@ import (
 	"github.com/supernetes/supernetes/controller/pkg/controller"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
+	"github.com/supernetes/supernetes/controller/pkg/workload"
 	"github.com/supernetes/supernetes/util/pkg/log"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -65,10 +66,12 @@ func main() {
 	log.FatalErr(vk.DisableKubeProxy(k8sClient)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
 
 	manager := controller.NewManager(context.Background(), k8sClient)
+	reconciler := workload.NewReconciler(context.Background(), ep.Workload(), k8sClient)
+	reconciler.Start()
 
 done:
 	for {
-		log.Debug().Msg("requesting list of nodes")
+		//log.Debug().Msg("requesting list of nodes")
 		nodeList, err := ep.Node().GetNodes(context.Background(), &emptypb.Empty{})
 		if err != nil {
 			log.Err(err).Msg("")
@@ -87,7 +90,7 @@ done:
 				nodes = append(nodes, n)
 			}
 
-			log.Debug().Msg("reconciling received nodes")
+			//log.Debug().Msg("reconciling received nodes")
 			if err := manager.Reconcile(nodes); err != nil {
 				log.Err(err).Msg("")
 			}
@@ -100,4 +103,6 @@ done:
 			break done
 		}
 	}
+
+	reconciler.Stop()
 }

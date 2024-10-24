@@ -145,7 +145,7 @@ func (i *instance) Run(ctx context.Context) error {
 		return errors.Wrap(err, "creating pod controller failed")
 	}
 
-	vkLogger := log.Level(zerolog.InfoLevel)               // TODO: Configurability, VK is noisy
+	vkLogger := log.Level(zerolog.DebugLevel)              // TODO: Configurability, VK is noisy
 	ctx = vklog.WithLogger(ctx, sulog.VKLogger(&vkLogger)) // Virtual Kubelet logging
 	ctx, cancel := context.WithCancel(ctx)                 // Controllers must be able to stop each other
 
