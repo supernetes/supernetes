@@ -8,8 +8,10 @@ package run
 
 import (
 	"os"
+	"regexp"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"github.com/supernetes/supernetes/config/pkg/config"
 	"github.com/supernetes/supernetes/config/pkg/generate"
@@ -36,10 +38,50 @@ type GenerateOptions struct {
 	ControllerSecretName      string
 	ControllerSecretNamespace string
 
+	SlurmAccount   string
+	SlurmPartition string
+
+	FilterPartitionRegex string
+	FilterNodeRegex      string
+
 	CertDaysValid uint32
 }
 
 func (gf *GenerateFlags) NewGenerateOptions(_ []string, _ *pflag.FlagSet) (*GenerateOptions, error) {
+	if gf.AgentConfigPath == "" {
+		return nil, errors.New("agent configuration file path must be provided")
+	}
+
+	if gf.AgentEndpoint == "" {
+		return nil, errors.New("agent connection endpoint must be provided")
+	}
+
+	if gf.ControllerConfigPath == "" {
+		return nil, errors.New("controller configuration file path must be provided")
+	}
+
+	if gf.ControllerSecret {
+		if gf.ControllerSecretName == "" {
+			return nil, errors.New("controller secret name must be provided")
+		}
+
+		if gf.ControllerSecretNamespace == "" {
+			return nil, errors.New("controller secret namespace must be provided")
+		}
+	}
+
+	if gf.SlurmAccount == "" {
+		return nil, errors.New("Slurm account must be provided")
+	}
+
+	if gf.SlurmPartition == "" {
+		return nil, errors.New("Slurm partition must be provided")
+	}
+
+	if gf.CertDaysValid == 0 {
+		return nil, errors.New("mTLS certificates must be valid for at least 1 day")
+	}
+
 	return &gf.GenerateOptions, nil
 }
 
@@ -77,9 +119,32 @@ func Generate(g *GenerateOptions) error {
 	}
 
 	log.Debug().Msg("encoding agent configuration")
+	var filter *config.Filter
+	if g.FilterPartitionRegex != "" || g.FilterNodeRegex != "" {
+		partitionRegex, err := regexp.Compile(g.FilterPartitionRegex)
+		if err != nil {
+			return err
+		}
+
+		nodeRegex, err := regexp.Compile(g.FilterNodeRegex)
+		if err != nil {
+			return err
+		}
+
+		filter = &config.Filter{
+			PartitionRegex: *partitionRegex,
+			NodeRegex:      *nodeRegex,
+		}
+	}
+
 	agentConfig, err := config.Encode(&config.AgentConfig{
 		Endpoint:   g.AgentEndpoint,
 		MTlsConfig: *agentMTls,
+		SlurmConfig: config.SlurmConfig{
+			Account:   g.SlurmAccount,
+			Partition: g.SlurmPartition,
+			Filter:    filter,
+		},
 	})
 	if err != nil {
 		return err

@@ -6,12 +6,16 @@
 
 package scontrol
 
-func ReadNodeInfo() (*NodeInfo, error) {
-	nodeInfoBytes, err := run("show", "node")
-	if err != nil {
-		return nil, err
-	}
+import (
+	"os/exec"
 
-	// TODO: Also handle the error field in the JSON
-	return decode[NodeInfo](nodeInfoBytes)
+	"github.com/supernetes/supernetes/util/pkg/log"
+)
+
+// Run executes an `scontrol` command with the given arguments, returning JSON bytes
+func Run(args ...string) ([]byte, error) {
+	args = append([]string{"--json"}, args...)
+	log.Trace().Strs("args", args).Msg("invoking scontrol")
+	cmd := exec.Command("scontrol", args...)
+	return cmd.Output()
 }

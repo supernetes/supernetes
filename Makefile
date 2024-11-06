@@ -64,5 +64,8 @@ clean:
 	docker rmi -f supernetes-build $(shell docker images --filter=reference="$(IMAGE_REPO):*" -q)
 	docker volume rm -f supernetes-build-cache
 
+# Include custom targets if defined
+-include dev/Makefile
+
 # All directly invoked targets are phony, Make still checks dependencies for %.pb.go etc. as desired
 .PHONY: all $(MAKECMDGOALS)

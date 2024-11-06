@@ -7,26 +7,25 @@
 package client
 
 import (
-	"errors"
-	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/supernetes/supernetes/util/pkg/log"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func NewK8sClient() (kubernetes.Interface, error) {
+func NewK8sConfig() (*rest.Config, error) {
 	kubecfg, err := loadInClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("unable to load in-cluster configuration: %v", err)
+		return nil, errors.Wrap(err, "unable to load in-cluster configuration")
 	}
 
 	if kubecfg == nil {
 		kubecfg, err = loadKubeconfig()
 		if err != nil {
-			return nil, fmt.Errorf("unable to load cluster configuration: %v", err)
+			return nil, errors.Wrap(err, "unable to load cluster configuration")
 		}
 	}
 
@@ -34,12 +33,15 @@ func NewK8sClient() (kubernetes.Interface, error) {
 	kubecfg.QPS = 100 * rest.DefaultQPS
 	kubecfg.Burst = 100 * rest.DefaultBurst
 
-	k8sClient, err := kubernetes.NewForConfig(kubecfg)
-	if err != nil {
-		return nil, fmt.Errorf("creating K8s client failed: %v", err)
-	}
+	return kubecfg, nil
+}
 
-	return k8sClient, nil
+func NewK8sClient(config *rest.Config) (kubernetes.Interface, error) {
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to instantiate Kubernetes client: %v")
+	}
+	return client, nil
 }
 
 func loadInClusterConfig() (*rest.Config, error) {

@@ -18,5 +18,7 @@ jobs:
           filter: tree:0
       - name: Set up runtime
         uses: ./.github/actions/runtime
+        with:
+          save-cache: true
       - name: Run make
         run: make

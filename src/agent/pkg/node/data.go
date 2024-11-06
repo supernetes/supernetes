@@ -4,13 +4,25 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-package scontrol
+package node
 
-type NodeInfo struct {
+import "github.com/supernetes/supernetes/agent/pkg/scontrol"
+
+// TODO: Make sure all the UNIX timestamp fields are int64
+
+type Data struct {
 	Meta     Meta   `json:"meta"`
 	Nodes    []Node `json:"nodes"`
 	Warnings []any  `json:"warnings"`
 	Errors   []any  `json:"errors"`
+}
+
+func (d *Data) GetWarnings() []any {
+	return d.Warnings
+}
+
+func (d *Data) GetErrors() []any {
+	return d.Errors
 }
 
 type Plugins struct {
@@ -36,31 +48,31 @@ type Meta struct {
 }
 
 type Energy struct {
-	AverageWatts           int    `json:"average_watts"`
-	BaseConsumedEnergy     int    `json:"base_consumed_energy"`
-	ConsumedEnergy         int    `json:"consumed_energy"`
-	CurrentWatts           Number `json:"current_watts"`
-	PreviousConsumedEnergy int    `json:"previous_consumed_energy"`
-	LastCollected          int    `json:"last_collected"`
+	AverageWatts           int             `json:"average_watts"`
+	BaseConsumedEnergy     int             `json:"base_consumed_energy"`
+	ConsumedEnergy         int             `json:"consumed_energy"`
+	CurrentWatts           scontrol.Number `json:"current_watts"`
+	PreviousConsumedEnergy int             `json:"previous_consumed_energy"`
+	LastCollected          int             `json:"last_collected"`
 }
 
 type ExternalSensors struct {
-	ConsumedEnergy   Number `json:"consumed_energy"`
-	Temperature      Number `json:"temperature"`
-	EnergyUpdateTime int    `json:"energy_update_time"`
-	CurrentWatts     int    `json:"current_watts"`
+	ConsumedEnergy   scontrol.Number `json:"consumed_energy"`
+	Temperature      scontrol.Number `json:"temperature"`
+	EnergyUpdateTime int             `json:"energy_update_time"`
+	CurrentWatts     int             `json:"current_watts"`
 }
 
 type Power struct {
-	MaximumWatts    Number `json:"maximum_watts"`
-	CurrentWatts    int    `json:"current_watts"`
-	TotalEnergy     int    `json:"total_energy"`
-	NewMaximumWatts int    `json:"new_maximum_watts"`
-	PeakWatts       int    `json:"peak_watts"`
-	LowestWatts     int    `json:"lowest_watts"`
-	NewJobTime      int    `json:"new_job_time"`
-	State           int    `json:"state"`
-	TimeStartDay    int    `json:"time_start_day"`
+	MaximumWatts    scontrol.Number `json:"maximum_watts"`
+	CurrentWatts    int             `json:"current_watts"`
+	TotalEnergy     int             `json:"total_energy"`
+	NewMaximumWatts int             `json:"new_maximum_watts"`
+	PeakWatts       int             `json:"peak_watts"`
+	LowestWatts     int             `json:"lowest_watts"`
+	NewJobTime      int             `json:"new_job_time"`
+	State           int             `json:"state"`
+	TimeStartDay    int             `json:"time_start_day"`
 }
 
 type Node struct {
@@ -72,8 +84,8 @@ type Node struct {
 	Cores                     int             `json:"cores"`
 	SpecializedCores          int             `json:"specialized_cores"`
 	CPUBinding                int             `json:"cpu_binding"`
-	CPULoad                   Number          `json:"cpu_load"`
-	FreeMem                   Number          `json:"free_mem"`
+	CPULoad                   scontrol.Number `json:"cpu_load"`
+	FreeMem                   scontrol.Number `json:"free_mem"`
 	Cpus                      int             `json:"cpus"`
 	EffectiveCpus             int             `json:"effective_cpus"`
 	SpecializedCpus           string          `json:"specialized_cpus"`
@@ -103,7 +115,7 @@ type Node struct {
 	Reason                    string          `json:"reason"`
 	ReasonChangedAt           int             `json:"reason_changed_at"`
 	ReasonSetByUser           string          `json:"reason_set_by_user"`
-	ResumeAfter               Number          `json:"resume_after"`
+	ResumeAfter               scontrol.Number `json:"resume_after"`
 	Reservation               string          `json:"reservation"`
 	AllocMemory               int             `json:"alloc_memory"`
 	AllocCpus                 int             `json:"alloc_cpus"`

@@ -22,10 +22,17 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// Callbacks invoke functions depending on endpoint state transitions
+type Callbacks struct {
+	OnConnected func() // OnConnected will be invoked every time an agent connects
+	OnIdle      func() // OnIdle will be invoked once all agents have disconnected
+}
+
 // Endpoint represents the network endpoint that remote agents connect to.
 type Endpoint interface {
 	Node() api.NodeApiClient
 	Workload() api.WorkloadApiClient
+	SetCallbacks(Callbacks)
 	Close()
 }
 
@@ -36,10 +43,25 @@ type endpoint struct {
 	closing        atomic.Bool
 	grpcServer     *grpc.Server
 	handler        *grpctunnel.TunnelServiceHandler
+	callbacks      Callbacks
 }
 
 // Compile-time type check
 var _ Endpoint = &endpoint{}
+
+/*
+TODO: If there are multiple agents, they all need to have unanimity in what the Slurm/filtering configuration should be,
+ otherwise, stuff is not going to work properly. If the agents are supposed to be mostly stateless, then these options
+ need to be configured through the controller, but that breaks separation of responsibilty a bit since the controller
+ itself does not interact with Slurm directly, and aims to be agnostic of it (to support, e.g., HTCondor later). Maybe
+ the smartest way would be to have the agents configure themselves, but not require all agents to have the same Slurm
+ options etc. at some point? Since that is probably overkill, it might be reasonable to simply hash the configuration of
+ the first connecting agent, and then enforce all other agents to also have that configuration. For now, the simplest
+ solution is to simply limit the controller to only accept one agent connection at a time.
+
+TODO: Actually, the GRPC tunnel system supports grouping reverse tunnels with a key, that key should probably ultimately
+ be the configuration hash so that all agents acting together will be automatically grouped.
+*/
 
 // Serve creates and serves an Endpoint according to the given configuration
 func Serve(config *suconfig.ControllerConfig) Endpoint {
@@ -55,9 +77,20 @@ func Serve(config *suconfig.ControllerConfig) Endpoint {
 					log.Debug().Msg("rejecting connection to closing endpoint")
 					channel.Close()
 				}
+
+				if srv.callbacks.OnConnected != nil {
+					srv.callbacks.OnConnected()
+				}
 			},
 			OnReverseTunnelClose: func(_ grpctunnel.TunnelChannel) {
 				log.Debug().Msg("reverse tunnel closed")
+
+				// This will be invoked once the last reverse tunnel is closed
+				if !srv.handler.AsChannel().Ready() {
+					if srv.callbacks.OnIdle != nil {
+						srv.callbacks.OnIdle()
+					}
+				}
 			},
 			AffinityKey:        nil,
 			DisableFlowControl: false,
@@ -107,39 +140,45 @@ func loadCreds(mTlsConfig *suconfig.MTlsConfig) grpc.ServerOption {
 }
 
 // serve synchronously serves the endpoint on the given port
-func (s *endpoint) serve(port uint16) error {
+func (e *endpoint) serve(port uint16) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
 
 	log.Info().Msgf("endpoint listening at %v", listener.Addr())
-	if err := s.grpcServer.Serve(listener); err != nil {
+	if err := e.grpcServer.Serve(listener); err != nil {
 		return fmt.Errorf("failed to serve: %v", err)
 	}
 
 	return nil
 }
 
-// Node returns the API client for sending RPCs to the agents
-func (s *endpoint) Node() api.NodeApiClient {
-	return s.nodeClient
+// Node returns an API client for sending RPCs to the agents
+func (e *endpoint) Node() api.NodeApiClient {
+	return e.nodeClient
 }
 
-func (s *endpoint) Workload() api.WorkloadApiClient {
-	return s.workloadClient
+// Workload returns an API client for sending RPCs to the agents
+func (e *endpoint) Workload() api.WorkloadApiClient {
+	return e.workloadClient
+}
+
+// SetCallbacks sets the state transition callbacks
+func (e *endpoint) SetCallbacks(callbacks Callbacks) {
+	e.callbacks = callbacks
 }
 
 // Close disconnects all clients and stops the endpoint
-func (s *endpoint) Close() {
-	s.handler.InitiateShutdown() // This is basically a no-op with only reverse tunnels
-	s.closing.Store(true)        // Prevent new connections from being established
+func (e *endpoint) Close() {
+	e.handler.InitiateShutdown() // This is basically a no-op with only reverse tunnels
+	e.closing.Store(true)        // Prevent new connections from being established
 
 	// Close all existing reverse tunnels (disconnect clients)
-	for _, c := range s.handler.AllReverseTunnels() {
+	for _, c := range e.handler.AllReverseTunnels() {
 		c.Close()
 	}
 
 	// Wait for graceful stop
-	s.grpcServer.GracefulStop()
+	e.grpcServer.GracefulStop()
 }

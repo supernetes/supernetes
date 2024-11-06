@@ -29,9 +29,10 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-// Instance combines all Virtual Kubelet controllers for handling a single node and its workloads
+// Instance combines all Virtual Kubelet controllers for handling a single node and its pods
 type Instance interface {
-	Run(context.Context) error
+	// Run starts the instance's controllers. The controllers use cancel() to stop each other.
+	Run(ctx context.Context, cancel func()) error
 }
 
 type instance struct {
@@ -88,7 +89,7 @@ func NewInstance(client kubernetes.Interface, n *api.Node) Instance {
 }
 
 // Run starts the instance controllers with the given context
-func (i *instance) Run(ctx context.Context) error {
+func (i *instance) Run(ctx context.Context, cancel func()) error {
 	cfg := *i.cfg                                        // Instance configuration, shallow copy for assignment overrides
 	nodeName := cfg.NodeSpec.ObjectMeta.Name             // Shorthand for node name
 	log := sulog.Scoped().Str("node", nodeName).Logger() // Node-specific scoped logger
@@ -140,14 +141,14 @@ func (i *instance) Run(ctx context.Context) error {
 		SecretInformer:    scmInformerFactory.Core().V1().Secrets(),
 		ServiceInformer:   scmInformerFactory.Core().V1().Services(),
 	}
+
 	podController, err := node.NewPodController(podControllerCfg)
 	if err != nil {
 		return errors.Wrap(err, "creating pod controller failed")
 	}
 
-	vkLogger := log.Level(zerolog.InfoLevel)               // TODO: Configurability, VK is noisy
-	ctx = vklog.WithLogger(ctx, sulog.VKLogger(&vkLogger)) // Virtual Kubelet logging
-	ctx, cancel := context.WithCancel(ctx)                 // Controllers must be able to stop each other
+	vkLogger := log.Level(zerolog.InfoLevel)                     // TODO: Configurability, VK is noisy
+	ctx = vklog.WithLogger(ctx, sulog.VKLogger(&vkLogger, true)) // Virtual Kubelet logging
 
 	// Start all informers
 	log.Debug().Msg("starting informers")
@@ -160,7 +161,7 @@ func (i *instance) Run(ctx context.Context) error {
 
 		// Start recoding pod controller events
 		log.Debug().Msg("starting event broadcaster for pod controller")
-		podEvents.StartLogging(log.Info().Str("scope", "pod-events").Msgf) // TODO: Log pod controller events?
+		podEvents.StartLogging(log.Debug().Str("scope", "pod-events").Msgf) // TODO: Log pod controller events?
 		podEvents.StartRecordingToSink(&corev1client.EventSinkImpl{
 			Interface: cfg.Client.CoreV1().Events(corev1.NamespaceAll),
 		})

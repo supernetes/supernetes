@@ -1,5 +1,8 @@
 name: Build environment runtime
 description: Rootless Docker runtime with Buildkit
+inputs:
+  save-cache:
+    description: Save cache after workflow run
 runs:
   using: composite
   steps:
@@ -9,6 +12,14 @@ runs:
         path: ~/.local/share/docker/volumes
         key: docker-volumes-${{ runner.arch }}-${{ hashFiles('src/**') }}
         restore-keys: docker-volumes-${{ runner.arch }}
+      if: ${{ inputs.save-cache }}
+    - name: Cache Docker volumes (restore only)
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.local/share/docker/volumes
+        key: docker-volumes-${{ runner.arch }}-${{ hashFiles('src/**') }}
+        restore-keys: docker-volumes-${{ runner.arch }}
+      if: ${{ !inputs.save-cache }}
     - name: Use Docker in rootless mode
       uses: ScribeMD/rootless-docker@0.2.2
     - name: Set up Buildkit

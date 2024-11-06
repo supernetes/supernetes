@@ -8,22 +8,20 @@ package main
 
 import (
 	"context"
-	"errors"
-	"io"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/spf13/pflag"
-	api "github.com/supernetes/supernetes/api/v1alpha1"
 	suconfig "github.com/supernetes/supernetes/config/pkg/config"
 	"github.com/supernetes/supernetes/controller/pkg/client"
-	"github.com/supernetes/supernetes/controller/pkg/controller"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
+	"github.com/supernetes/supernetes/controller/pkg/node"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
+	"github.com/supernetes/supernetes/controller/pkg/workload"
 	"github.com/supernetes/supernetes/util/pkg/log"
-	"google.golang.org/protobuf/types/known/emptypb"
+	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -32,11 +30,12 @@ var (
 )
 
 func main() {
-	pflag.StringVarP(&logLevel, "log-level", "l", "trace", "Log level") // TODO: Change to "info"
+	pflag.StringVarP(&logLevel, "log-level", "l", "info", "Log level") // TODO: Persistently default to "info"
 	pflag.StringVarP(&configPath, "config", "c", "", "path to controller configuration file (mandatory)")
 	pflag.Parse()
 
 	log.Init(logLevel)
+	crlog.SetLogger(log.CRLogger(nil))
 
 	// Configuration file path must be provided
 	if len(configPath) == 0 {
@@ -55,49 +54,41 @@ func main() {
 	ep := endpoint.Serve(config)
 	defer ep.Close()
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
-	ticker := time.NewTicker(10 * time.Second)
-
-	k8sClient, err := client.NewK8sClient()
+	k8sConfig, err := client.NewK8sConfig()
 	log.FatalErr(err).Msg("failed to create K8s client")
 
-	log.FatalErr(vk.DisableKubeProxy(k8sClient)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
+	log.FatalErr(vk.DisableKubeProxy(k8sConfig)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
 
-	manager := controller.NewManager(context.Background(), k8sClient)
+	ctx := context.Background()
+	nodeReconciler, err := node.NewReconciler(ctx, node.ReconcilerConfig{
+		Interval:  time.Minute,
+		Client:    ep.Node(),
+		K8sConfig: k8sConfig,
+	})
+	log.FatalErr(err).Msg("failed to create node reconciler")
+	workloadReconciler, err := workload.NewReconciler(ctx, workload.ReconcilerConfig{
+		Interval:  time.Minute,
+		Client:    ep.Workload(),
+		K8sConfig: k8sConfig,
+	})
+	log.FatalErr(err).Msg("failed to create workload reconciler")
 
-done:
-	for {
-		log.Debug().Msg("requesting list of nodes")
-		nodeList, err := ep.Node().GetNodes(context.Background(), &emptypb.Empty{})
-		if err != nil {
-			log.Err(err).Msg("")
-		} else {
-			nodes := make([]*api.Node, 0)
-			for {
-				n, err := nodeList.Recv()
-				if err != nil {
-					if errors.Is(err, io.EOF) {
-						break
-					}
+	// Use callbacks to automatically start/stop the control loops
+	ep.SetCallbacks(endpoint.Callbacks{
+		OnConnected: func() {
+			nodeReconciler.Start()
+			workloadReconciler.Start()
+		},
+		OnIdle: func() {
+			nodeReconciler.Stop()
+			workloadReconciler.Stop()
+		},
+	})
 
-					log.Fatal().Err(err).Msg("receiving nodes failed")
-				}
+	defer nodeReconciler.Stop()
+	defer workloadReconciler.Stop()
 
-				nodes = append(nodes, n)
-			}
-
-			log.Debug().Msg("reconciling received nodes")
-			if err := manager.Reconcile(nodes); err != nil {
-				log.Err(err).Msg("")
-			}
-		}
-
-		select {
-		case <-ticker.C:
-		case <-done:
-			ticker.Stop()
-			break done
-		}
-	}
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+	<-done
 }
