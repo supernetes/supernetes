@@ -14,8 +14,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
+	sulog "github.com/supernetes/supernetes/common/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/supernetes"
 	"github.com/supernetes/supernetes/controller/pkg/provider"
-	sulog "github.com/supernetes/supernetes/util/pkg/log"
 	vklog "github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
@@ -33,10 +34,13 @@ import (
 type Instance interface {
 	// Run starts the instance's controllers. The controllers use cancel() to stop each other.
 	Run(ctx context.Context, cancel func()) error
+	// UpdateStatus can be used to trigger Pod status updates in the associated Pod provider
+	UpdateStatus(ctx context.Context, pod *corev1.Pod) error
 }
 
 type instance struct {
-	cfg *nodeutil.NodeConfig
+	cfg         *nodeutil.NodeConfig
+	podProvider provider.PodProvider
 }
 
 // TODO: This doesn't re-create the node if it's deleted from the API server
@@ -53,14 +57,14 @@ func NewInstance(client kubernetes.Interface, n *api.Node) Instance {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: n.Meta.Name,
 				Labels: map[string]string{
-					"type":                   "virtual-kubelet",
-					"kubernetes.io/role":     "supernetes",
+					"type":                   supernetes.NodeTypeVirtualKubelet,
+					"kubernetes.io/role":     supernetes.NodeRoleSupernetes,
 					"kubernetes.io/hostname": n.Meta.Name,
 				},
 			},
 			Spec: corev1.NodeSpec{
 				Taints: []corev1.Taint{{
-					Key:    "supernetes-node/no-schedule",
+					Key:    supernetes.TaintNoSchedule,
 					Effect: corev1.TaintEffectNoSchedule,
 				}},
 			},
@@ -96,7 +100,10 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 
 	// Configure the error handler for status updates
 	cfg.NodeStatusUpdateErrorHandler = func(_ context.Context, err error) error {
-		log.Err(err).Msg("status update failed")
+		if !errors.Is(err, context.Canceled) {
+			log.Err(err).Msg("status update failed")
+		}
+
 		return err
 	}
 
@@ -131,11 +138,11 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 
 	// Set up pod controller
 	podProviderLogger := log.With().Str("scope", "provider").Logger()
-	podProvider := provider.NewPodProvider(&podProviderLogger)
+	i.podProvider = provider.NewPodProvider(&podProviderLogger)
 	podControllerCfg := node.PodControllerConfig{
 		PodClient:         cfg.Client.CoreV1(),
 		EventRecorder:     cfg.EventRecorder,
-		Provider:          podProvider,
+		Provider:          i.podProvider,
 		PodInformer:       podInformerFactory.Core().V1().Pods(),
 		ConfigMapInformer: scmInformerFactory.Core().V1().ConfigMaps(),
 		SecretInformer:    scmInformerFactory.Core().V1().Secrets(),
@@ -147,8 +154,11 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 		return errors.Wrap(err, "creating pod controller failed")
 	}
 
-	vkLogger := log.Level(zerolog.InfoLevel)                     // TODO: Configurability, VK is noisy
-	ctx = vklog.WithLogger(ctx, sulog.VKLogger(&vkLogger, true)) // Virtual Kubelet logging
+	vkLogger := log.Level(zerolog.InfoLevel) // TODO: Configurability, VK is noisy
+	ctx = vklog.WithLogger(ctx, sulog.VKLogger(&vkLogger, sulog.VKLoggerConfig{
+		ClampToDebug:        true,
+		SuppressCtxCanceled: true,
+	})) // Virtual Kubelet logging
 
 	// Start all informers
 	log.Debug().Msg("starting informers")
@@ -173,7 +183,7 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 			return
 		}
 
-		log.Debug().Msg("stopping pod controller")
+		log.Debug().Msg("stopped pod controller")
 	}()
 
 	// Wait for pod controller to become ready
@@ -201,7 +211,7 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 		// TODO: Maybe Supernetes should run another controller/reconciliation loop for handling virtual node pruning?
 		// TODO: Another option is the Kyverno cleanup controller (https://kyverno.io/docs/writing-policies/cleanup/)
 
-		log.Debug().Msg("stopping node controller")
+		log.Debug().Msg("stopped node controller")
 	}()
 
 	// Wait for node controller to become ready
@@ -217,6 +227,15 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 	log.Debug().Msg("marking node as ready")
 	nodeReady := setReady(cfg.NodeSpec.DeepCopy())
 	return errors.Wrap(nodeProvider.UpdateStatus(ctx, nodeReady), "error marking node as ready")
+}
+
+func (i *instance) UpdateStatus(ctx context.Context, pod *corev1.Pod) error {
+	// This is a no-op if the instance is not running
+	if i.podProvider == nil {
+		return nil
+	}
+
+	return i.podProvider.UpdateStatus(ctx, pod)
 }
 
 func setReady(n *corev1.Node) *corev1.Node {

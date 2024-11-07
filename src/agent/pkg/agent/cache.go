@@ -10,7 +10,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/supernetes/supernetes/util/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/log"
 )
 
 var cacheDir string

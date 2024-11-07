@@ -14,7 +14,7 @@ import (
 	"github.com/supernetes/supernetes/agent/pkg/job"
 	"github.com/supernetes/supernetes/agent/pkg/sbatch"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/util/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -81,11 +81,8 @@ func (s *workloadServer) List(_ *emptypb.Empty, stream grpc.ServerStreamingServe
 		return errors.New(msg)
 	}
 
-	log.Debug().
-		Int("all", len(jobData.Jobs)).
-		Msg("sending job list")
-
-	for _, j := range jobData.Jobs {
+	for i := range jobData.Jobs {
+		j := &jobData.Jobs[i]
 		if !s.filter.Partition(j.Partition) {
 			continue // Job not in filtered partitions
 		}
@@ -95,6 +92,10 @@ func (s *workloadServer) List(_ *emptypb.Empty, stream grpc.ServerStreamingServe
 			return err
 		}
 	}
+
+	log.Debug().
+		Int("all", len(jobData.Jobs)).
+		Msg("sent job list")
 
 	return nil
 }

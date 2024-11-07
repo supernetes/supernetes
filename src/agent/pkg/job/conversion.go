@@ -14,7 +14,7 @@ import (
 
 	"github.com/supernetes/supernetes/agent/pkg/agent"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/util/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/log"
 )
 
 func (j *Job) ConvertToApi(nodeFilter func(string) bool) *api.Workload {

@@ -13,9 +13,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/config/pkg/config"
 	"github.com/supernetes/supernetes/config/pkg/generate"
-	"github.com/supernetes/supernetes/util/pkg/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

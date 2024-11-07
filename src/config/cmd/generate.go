@@ -10,8 +10,8 @@ import (
 	"github.com/lithammer/dedent"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/config/pkg/run"
-	"github.com/supernetes/supernetes/util/pkg/log"
 )
 
 func NewCmdGenerate() *cobra.Command {

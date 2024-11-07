@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	suerr "github.com/supernetes/supernetes/common/pkg/error"
 )
 
 type Reconciler interface {
@@ -66,26 +67,23 @@ func (r *reconciler) Start() {
 	r.wg.Add(1)
 
 	go func() {
-		r.log.Debug().Msg("starting reconciliation")
-		defer r.log.Debug().Msg("stopping reconciliation")
+		defer r.wg.Done()
+		defer r.log.Debug().Msg("stopped reconciliation loop")
+		r.log.Debug().Msg("starting reconciliation loop")
 		ticker := time.NewTicker(r.interval)
 
 		for {
 			r.log.Debug().Msg("performing reconciliation")
 			err := r.impl.Reconcile(ctx)
-			if errors.Is(err, context.Canceled) {
-				return // Context cancellation is expected if stopped
-			}
 
-			if err != nil {
-				r.log.Err(err).Msg("reconciliation failed")
-			} else {
+			if err == nil {
 				r.log.Debug().Msg("reconciliation finished")
+			} else if !suerr.IsContextCanceled(err) {
+				r.log.Err(err).Msg("reconciliation failed")
 			}
 
 			select {
 			case <-ctx.Done():
-				r.wg.Done()
 				return
 			case <-ticker.C:
 			}

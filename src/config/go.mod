@@ -7,7 +7,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
-	github.com/supernetes/supernetes/util v0.0.0
+	github.com/supernetes/supernetes/common v0.0.0
 	k8s.io/api v0.31.1
 	k8s.io/apimachinery v0.31.1
 	sigs.k8s.io/yaml v1.4.0
@@ -40,6 +40,6 @@ require (
 )
 
 replace (
-	github.com/supernetes/supernetes/util v0.0.0 => ../util
+	github.com/supernetes/supernetes/common v0.0.0 => ../common
 	k8s.io/api => k8s.io/api v0.30.0 // k8s.io/api/resource/v1alpha2 needed by k8s.io/client-go/kubernetes/scheme
 )

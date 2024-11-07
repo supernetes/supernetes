@@ -9,6 +9,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -51,177 +52,280 @@ func (k *podKey) String() string {
 
 var _ fmt.Stringer = &podKey{} // Static type assert
 
-// TODO: Virtual Kubelet, through GetPod/CreatePod/etc. basically makes sure that the pods tracked by podProvider are
-//  consistent with the API server. On startup, any pods that this contains but are not present (anymore) in the cluster
-//  will be deleted, and any pods that should be tracked will be created on startup. This means that we should consider
-//  the API server as the single source of truth instead of Slurm. That said, since jobs will also be created on the HPC
-//  side by other users interacting with Slurm directly, we need some kind of reconciliation loop that periodically
-//  requests the job list from the agent, and creates Pods based on that. Those pods will then obviously be picked up by
-//  podProvider again, but if they already contain a job ID or something, this can just update their status and not
-//  actually deploy anything.
-//
 // TODO: Another design consideration is what to do with Pod deletions. They should probably be essentially no-ops,
 //  i.e., the deletion will cause the Pod to be removed from podProvider's tracking, but the deletion request sent to
 //  the agent is just an `scancel`. Upon job reconciliation, if Slurm still tracks the job, the Pod is going to be re-
 //  created (with a "Completed") status. Once a job is actually removed from Slurm tracking, the reconciler will also
 //  remove the associated Pod.
 
-// podProvider implements the Virtual Kubelet pod lifecycle handler for Supernetes workloads
-type podProvider struct {
-	log      *zerolog.Logger
-	pods     map[podKey]*corev1.Pod
-	notifier func(*corev1.Pod)
+type PodProvider interface {
+	node.PodLifecycleHandler
+	node.PodNotifier // Required for async provider compliance
+	// UpdateStatus is an additional handler for asynchronously updating the status of a Pod
+	UpdateStatus(ctx context.Context, pod *corev1.Pod) error
 }
 
-var _ node.PodNotifier = &podProvider{} // Required for async provider compliance
+// podProvider implements the Virtual Kubelet pod lifecycle handler for Supernetes workloads
+type podProvider struct {
+	log           *zerolog.Logger
+	pods          map[podKey]*corev1.Pod
+	pendingStatus map[podKey]*corev1.PodStatus
+	notifier      func(*corev1.Pod)
+	mutex         sync.Mutex
+}
 
-func NewPodProvider(log *zerolog.Logger) node.PodLifecycleHandler {
+func NewPodProvider(log *zerolog.Logger) PodProvider {
 	return &podProvider{
-		log:  log,
-		pods: make(map[podKey]*corev1.Pod),
+		log:           log,
+		pods:          make(map[podKey]*corev1.Pod),
+		pendingStatus: make(map[podKey]*corev1.PodStatus),
 	}
 }
 
 // NotifyPods should be called (by VK logic) before any other operations
 func (p *podProvider) NotifyPods(_ context.Context, notifier func(*corev1.Pod)) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	p.notifier = notifier
 }
 
 func (p *podProvider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
-	// TODO: Implement
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO CreatePod called")
+	log.Trace().Msg("CreatePod called")
 
-	now := metav1.NewTime(time.Now())
-	pod.Status = corev1.PodStatus{
-		Phase: corev1.PodRunning,
-		//HostIP:    "1.2.3.4",
-		//PodIP:     "5.6.7.8",
-		StartTime: &now,
-		Conditions: []corev1.PodCondition{
-			{
-				Type:   corev1.PodInitialized,
-				Status: corev1.ConditionTrue,
-			},
-			{
-				Type:   corev1.PodReady,
-				Status: corev1.ConditionTrue,
-			},
-			{
-				Type:   corev1.PodScheduled,
-				Status: corev1.ConditionTrue,
-			},
-		},
+	if status, ok := p.pendingStatus[key]; ok {
+		pod.Status = *status
+		delete(p.pendingStatus, key)
+		log.Trace().Msg("loaded pending pod status")
 	}
 
-	for _, container := range pod.Spec.Containers {
-		pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, corev1.ContainerStatus{
-			Name:         container.Name,
-			Image:        container.Image,
-			Ready:        true,
-			RestartCount: 0,
-			State: corev1.ContainerState{
-				Running: &corev1.ContainerStateRunning{
-					StartedAt: now,
-				},
-			},
-		})
-	}
+	changePhase(pod, pod.Status.Phase)
+	pod.Status.Message = "Supernetes workload was created"
 
 	p.pods[key] = pod
 	p.notifier(pod)
 
-	log.Debug().Msg("pod created")
+	log.Trace().Msg("pod created")
 	return nil
 }
 
 func (p *podProvider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
-	// TODO: Implement
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO UpdatePod called")
+	log.Trace().Msg("UpdatePod called")
+
+	changePhase(pod, pod.Status.Phase) // Use existing phase of pod
+	pod.Status.Message = "Supernetes workload was updated"
 
 	p.pods[key] = pod
 	p.notifier(pod)
 
-	log.Debug().Msg("pod updated")
+	log.Trace().Msg("pod updated")
 	return nil
 }
 
 func (p *podProvider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
-	// TODO: Implement
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	key := keyFor(pod)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO DeletePod called")
+	log.Trace().Msg("DeletePod called")
 
 	if _, ok := p.pods[key]; !ok {
-		return errdefs.NotFound("pod not found")
+		log.Trace().Msg("unknown pod")
+		return errdefs.NotFoundf("unknown pod %q", key)
 	}
 
-	now := metav1.Now()
-	pod.Status.Phase = corev1.PodSucceeded
-	pod.Status.Reason = "SupernetesPodDeleted"
-
-	for i := range pod.Status.ContainerStatuses {
-		pod.Status.ContainerStatuses[i].Ready = false
-		pod.Status.ContainerStatuses[i].State = corev1.ContainerState{
-			Terminated: &corev1.ContainerStateTerminated{
-				Message:    "Supernetes terminated container upon deletion",
-				FinishedAt: now,
-				Reason:     "SupernetesPodContainerDeleted",
-				StartedAt:  pod.Status.ContainerStatuses[i].State.Running.StartedAt,
-			},
-		}
-	}
+	changePhase(pod, corev1.PodSucceeded)
+	pod.Status.Message = "Supernetes workload was deleted"
 
 	delete(p.pods, key)
 	p.notifier(pod)
 
-	log.Debug().Msg("pod deleted")
+	log.Trace().Msg("pod deleted")
 	return nil
 }
 
 func (p *podProvider) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
-	// TODO: Implement
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	key := keyFrom(name, namespace)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO GetPod called")
+	log.Trace().Msg("GetPod called")
 
 	if pod, ok := p.pods[key]; ok {
-		log.Debug().Msg("pod retrieved")
+		log.Trace().Msg("pod retrieved")
 		return pod.DeepCopy(), nil
 	}
 
-	log.Debug().Msg("unknown pod")
+	log.Trace().Msg("unknown pod")
 	return nil, errdefs.NotFoundf("unknown pod %q", key)
 }
 
 func (p *podProvider) GetPodStatus(ctx context.Context, namespace, name string) (*corev1.PodStatus, error) {
-	// TODO: Implement
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	key := keyFrom(name, namespace)
 	log := p.log.With().Fields(key.fields()).Logger()
-	log.Debug().Msg("TODO GetPodStatus called")
+	log.Trace().Msg("GetPodStatus called")
 
 	if pod, ok := p.pods[key]; ok {
-		log.Debug().Msg("pod status retrieved")
+		log.Trace().Msg("pod status retrieved")
 		return pod.Status.DeepCopy(), nil
 	}
 
-	log.Debug().Msg("unknown pod")
+	log.Trace().Msg("unknown pod")
 	return nil, errdefs.NotFoundf("unknown pod %q", key)
 }
 
 func (p *podProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
-	// TODO: Implement
-	log := p.log
-	log.Debug().Msg("TODO GetPods called")
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	var pods []*corev1.Pod
+	log := p.log
+	log.Trace().Msg("GetPods called")
+
+	pods := make([]*corev1.Pod, 0, len(p.pods))
 	for _, pod := range p.pods {
 		pods = append(pods, pod.DeepCopy())
 	}
 
-	log.Debug().Msgf("%d pod(s) retrieved", len(pods))
+	log.Trace().Msgf("%d pod(s) retrieved", len(pods))
 	return pods, nil
+}
+
+// UpdateStatus updates the status of the given Pod in the provider
+func (p *podProvider) UpdateStatus(ctx context.Context, updatedPod *corev1.Pod) error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	key := keyFor(updatedPod)
+	log := p.log.With().Fields(key.fields()).Logger()
+
+	pod, ok := p.pods[key]
+	if !ok {
+		log.Trace().Msg("pod not found, caching status")
+		p.pendingStatus[key] = &updatedPod.Status
+		return nil
+	}
+
+	if pod.Status.Phase != updatedPod.Status.Phase {
+		pod.Status = updatedPod.Status
+		changePhase(pod, pod.Status.Phase)
+		pod.Status.Message = "Supernetes workload status was updated"
+
+		p.pods[key] = pod
+		p.notifier(pod)
+
+		log.Trace().Msg("pod status updated")
+		return nil
+	}
+
+	return nil
+}
+
+func changePhase(pod *corev1.Pod, phase corev1.PodPhase) {
+	pod.Status.Phase = phase
+
+	condition := corev1.ConditionFalse
+	if phase == corev1.PodRunning {
+		condition = corev1.ConditionTrue
+	}
+
+	pod.Status.Conditions = []corev1.PodCondition{
+		{
+			Type:   corev1.ContainersReady,
+			Status: condition,
+		},
+		{
+			Type:   corev1.PodInitialized,
+			Status: corev1.ConditionTrue, // No init containers
+		},
+		{
+			Type:   corev1.PodReady,
+			Status: condition,
+		},
+		{
+			Type:   corev1.PodScheduled,
+			Status: corev1.ConditionTrue, // Scheduling has succeeded if we've reached this point
+		},
+	}
+
+	// Helper for transferring over existing container status
+	type containerStatus struct {
+		startTime    metav1.Time
+		restartCount int32
+	}
+
+	containerStatuses := make(map[string]containerStatus)
+	for i := range pod.Status.ContainerStatuses {
+		status := &pod.Status.ContainerStatuses[i]
+
+		var startTime metav1.Time
+		if status.State.Running != nil {
+			startTime = status.State.Running.StartedAt
+		}
+
+		containerStatuses[status.Name] = containerStatus{
+			startTime:    startTime,
+			restartCount: status.RestartCount,
+		}
+	}
+
+	pod.Status.ContainerStatuses = make([]corev1.ContainerStatus, 0, len(pod.Spec.Containers))
+	now := metav1.NewTime(time.Now())
+	for _, container := range pod.Spec.Containers {
+		status := corev1.ContainerStatus{
+			Name:  container.Name,
+			Image: container.Image,
+			Ready: phase == corev1.PodRunning,
+		}
+
+		// Transfer over existing status
+		var startTime metav1.Time
+		if s, ok := containerStatuses[container.Name]; ok {
+			startTime = s.startTime
+			status.RestartCount = s.restartCount
+		}
+
+		switch phase {
+		case corev1.PodPending:
+			status.State.Waiting = &corev1.ContainerStateWaiting{
+				Reason:  "Pending",
+				Message: "Supernetes workload pending",
+			}
+		case corev1.PodRunning:
+			status.State.Running = &corev1.ContainerStateRunning{
+				StartedAt: now,
+			}
+		case corev1.PodSucceeded, corev1.PodFailed:
+			var exitCode int32
+			var reason = "Completed"
+			if phase != corev1.PodSucceeded {
+				exitCode = 1
+				reason = "Error"
+			}
+
+			status.State.Terminated = &corev1.ContainerStateTerminated{
+				ExitCode:   exitCode,
+				Message:    "Supernetes workload terminated",
+				FinishedAt: now,
+				Reason:     reason,
+				StartedAt:  startTime,
+			}
+		}
+
+		pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, status)
+	}
 }

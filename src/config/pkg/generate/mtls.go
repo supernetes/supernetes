@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/supernetes/supernetes/common/pkg/supernetes"
 	"github.com/supernetes/supernetes/config/pkg/config"
 )
 
@@ -125,7 +126,7 @@ func initCert(cType certType, validFor time.Duration) (*certificateData, error) 
 	var dnsNames []string
 	switch cType {
 	case server:
-		dnsNames = append(dnsNames, "supernetes.internal")
+		dnsNames = append(dnsNames, supernetes.CertSANSupernetes)
 	default:
 	}
 

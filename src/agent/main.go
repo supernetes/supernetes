@@ -20,8 +20,9 @@ import (
 	"github.com/supernetes/supernetes/agent/pkg/sbatch"
 	"github.com/supernetes/supernetes/agent/pkg/server"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
+	"github.com/supernetes/supernetes/common/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/supernetes"
 	suconfig "github.com/supernetes/supernetes/config/pkg/config"
-	"github.com/supernetes/supernetes/util/pkg/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -126,7 +127,7 @@ func loadCreds(mTlsConfig *suconfig.MTlsConfig) grpc.DialOption {
 
 	tlsConfig := &tls.Config{
 		MinVersion:   tls.VersionTLS13,
-		ServerName:   "supernetes.internal",
+		ServerName:   supernetes.CertSANSupernetes,
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      ca,
 	}

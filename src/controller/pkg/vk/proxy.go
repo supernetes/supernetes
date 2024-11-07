@@ -10,8 +10,8 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/controller/pkg/client"
-	"github.com/supernetes/supernetes/util/pkg/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

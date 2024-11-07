@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/supernetes/supernetes/util/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	"sigs.k8s.io/json"
 )
 

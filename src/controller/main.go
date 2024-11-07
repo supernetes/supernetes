@@ -14,13 +14,13 @@ import (
 	"time"
 
 	"github.com/spf13/pflag"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	suconfig "github.com/supernetes/supernetes/config/pkg/config"
 	"github.com/supernetes/supernetes/controller/pkg/client"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
 	"github.com/supernetes/supernetes/controller/pkg/node"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
 	"github.com/supernetes/supernetes/controller/pkg/workload"
-	"github.com/supernetes/supernetes/util/pkg/log"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -30,7 +30,7 @@ var (
 )
 
 func main() {
-	pflag.StringVarP(&logLevel, "log-level", "l", "info", "Log level") // TODO: Persistently default to "info"
+	pflag.StringVarP(&logLevel, "log-level", "l", "trace", "Log level") // TODO: Persistently default to "info"
 	pflag.StringVarP(&configPath, "config", "c", "", "path to controller configuration file (mandatory)")
 	pflag.Parse()
 
@@ -67,9 +67,10 @@ func main() {
 	})
 	log.FatalErr(err).Msg("failed to create node reconciler")
 	workloadReconciler, err := workload.NewReconciler(ctx, workload.ReconcilerConfig{
-		Interval:  time.Minute,
-		Client:    ep.Workload(),
-		K8sConfig: k8sConfig,
+		Interval:     time.Minute,
+		Client:       ep.Workload(),
+		K8sConfig:    k8sConfig,
+		UpdateStatus: nodeReconciler.UpdateStatus,
 	})
 	log.FatalErr(err).Msg("failed to create workload reconciler")
 
