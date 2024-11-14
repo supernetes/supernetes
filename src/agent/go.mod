@@ -8,8 +8,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.5
 	github.com/supernetes/supernetes/api v0.0.0
+	github.com/supernetes/supernetes/common v0.0.0
 	github.com/supernetes/supernetes/config v0.0.0
-	github.com/supernetes/supernetes/util v0.0.0
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.2
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd
@@ -46,7 +46,7 @@ require (
 
 replace (
 	github.com/supernetes/supernetes/api v0.0.0 => ../api
+	github.com/supernetes/supernetes/common v0.0.0 => ../common
 	github.com/supernetes/supernetes/config v0.0.0 => ../config
-	github.com/supernetes/supernetes/util v0.0.0 => ../util
 	k8s.io/api => k8s.io/api v0.30.0 // k8s.io/api/resource/v1alpha2 needed by k8s.io/client-go/kubernetes/scheme
 )

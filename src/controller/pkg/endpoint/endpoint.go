@@ -11,13 +11,14 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
 
 	"github.com/jhump/grpctunnel"
 	"github.com/jhump/grpctunnel/tunnelpb"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	suconfig "github.com/supernetes/supernetes/config/pkg/config"
-	"github.com/supernetes/supernetes/util/pkg/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -38,12 +39,13 @@ type Endpoint interface {
 
 // endpoint implements the Endpoint interface
 type endpoint struct {
-	nodeClient     api.NodeApiClient
-	workloadClient api.WorkloadApiClient
-	closing        atomic.Bool
-	grpcServer     *grpc.Server
-	handler        *grpctunnel.TunnelServiceHandler
-	callbacks      Callbacks
+	nodeClient          api.NodeApiClient
+	workloadClient      api.WorkloadApiClient
+	closing             atomic.Bool
+	grpcServer          *grpc.Server
+	handler             *grpctunnel.TunnelServiceHandler
+	callbacks           Callbacks
+	callbacksRegistered sync.WaitGroup
 }
 
 // Compile-time type check
@@ -63,7 +65,8 @@ TODO: Actually, the GRPC tunnel system supports grouping reverse tunnels with a 
  be the configuration hash so that all agents acting together will be automatically grouped.
 */
 
-// Serve creates and serves an Endpoint according to the given configuration
+// Serve creates and serves an Endpoint according to the given configuration. Serving
+// will only commence after the callbacks have been registered with Endpoint.SetCallbacks.
 func Serve(config *suconfig.ControllerConfig) Endpoint {
 	srv := &endpoint{}
 
@@ -72,23 +75,28 @@ func Serve(config *suconfig.ControllerConfig) Endpoint {
 		grpctunnel.TunnelServiceHandlerOptions{
 			NoReverseTunnels: false,
 			OnReverseTunnelOpen: func(channel grpctunnel.TunnelChannel) {
-				log.Debug().Msg("reverse tunnel opened")
 				if srv.closing.Load() {
 					log.Debug().Msg("rejecting connection to closing endpoint")
 					channel.Close()
 				}
 
+				log.Info().Msg("agent connected")
 				if srv.callbacks.OnConnected != nil {
+					log.Debug().Msg("running connection callback")
 					srv.callbacks.OnConnected()
+					log.Debug().Msg("connection callback finished")
 				}
 			},
 			OnReverseTunnelClose: func(_ grpctunnel.TunnelChannel) {
-				log.Debug().Msg("reverse tunnel closed")
+				last := !srv.handler.AsChannel().Ready()
+				log.Info().Bool("last", last).Msg("agent disconnected")
 
 				// This will be invoked once the last reverse tunnel is closed
-				if !srv.handler.AsChannel().Ready() {
+				if last {
 					if srv.callbacks.OnIdle != nil {
+						log.Debug().Msg("running idle callback")
 						srv.callbacks.OnIdle()
+						log.Debug().Msg("idle callback finished")
 					}
 				}
 			},
@@ -110,7 +118,13 @@ func Serve(config *suconfig.ControllerConfig) Endpoint {
 	srv.grpcServer = grpc.NewServer(loadCreds(&config.MTlsConfig))
 	tunnelpb.RegisterTunnelServiceServer(srv.grpcServer, srv.handler.Service())
 
+	// Queue a wait for the callbacks to be registered
+	srv.callbacksRegistered.Add(1)
+
 	go func() {
+		// Wait until callbacks are registered
+		srv.callbacksRegistered.Wait()
+
 		// Start serving the endpoint
 		log.FatalErr(srv.serve(config.Port)).Msg("gRPC endpoint error")
 		log.Debug().Msg("gRPC endpoint closed")
@@ -167,6 +181,7 @@ func (e *endpoint) Workload() api.WorkloadApiClient {
 // SetCallbacks sets the state transition callbacks
 func (e *endpoint) SetCallbacks(callbacks Callbacks) {
 	e.callbacks = callbacks
+	e.callbacksRegistered.Done()
 }
 
 // Close disconnects all clients and stops the endpoint

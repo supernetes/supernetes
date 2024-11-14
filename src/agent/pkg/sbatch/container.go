@@ -8,7 +8,7 @@ package sbatch
 
 import (
 	"github.com/pkg/errors"
-	"github.com/supernetes/supernetes/util/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	"os/exec"
 )
 

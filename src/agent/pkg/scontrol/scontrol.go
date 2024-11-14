@@ -9,7 +9,7 @@ package scontrol
 import (
 	"os/exec"
 
-	"github.com/supernetes/supernetes/util/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/log"
 )
 
 // Run executes an `scontrol` command with the given arguments, returning JSON bytes

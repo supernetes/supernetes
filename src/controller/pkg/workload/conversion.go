@@ -12,52 +12,66 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/pkg/errors"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/util/pkg/log"
+	"github.com/supernetes/supernetes/common/pkg/supernetes"
+	"github.com/supernetes/supernetes/common/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func convertToPods(workload *api.Workload) []*corev1.Pod {
+func convertToPods(workload *api.Workload) ([]*corev1.Pod, error) {
 	pods := make([]*corev1.Pod, 0, max(len(workload.Status.Nodes), 1))
 
 	if len(workload.Status.Nodes) == 0 {
 		// Map the workload into a single pod if it's not allocated to any nodes
-		pods = append(pods, convertToPod(workload, nil, 0))
-		return pods
+		pod, err := convertToPod(workload, nil, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		return append(pods, pod), nil
 	}
 
 	for i, node := range workload.Status.Nodes {
-		pods = append(pods, convertToPod(workload, &node.Name, i))
+		pod, err := convertToPod(workload, &node.Name, i)
+		if err != nil {
+			return nil, err
+		}
+
+		pods = append(pods, pod)
 	}
 
-	return pods
+	return pods, nil
 }
 
-func convertToPod(workload *api.Workload, node *string, index int) *corev1.Pod {
+func convertToPod(workload *api.Workload, node *string, index int) (*corev1.Pod, error) {
 	nodeName := ""
 	schedulingGates := make([]corev1.PodSchedulingGate, 0)
 	if node != nil {
 		nodeName = *node
 	} else {
+		// Unallocated workloads do not get scheduled
 		schedulingGates = append(schedulingGates, corev1.PodSchedulingGate{
-			Name: "supernetes-workload/unallocated", // Unallocated workloads do not get scheduled
+			Name: supernetes.SGWorkloadUnallocated,
 		})
 	}
 
 	labels := map[string]string{
-		"supernetes-workload/idenfitier": workload.Meta.Identifier,
+		supernetes.LabelWorkloadIdentifier: workload.Meta.Identifier,
+		supernetes.LabelWorkloadKind:       string(supernetes.KindUntracked),
 	}
 
-	// Add diagnostics metadata under supernetes-extra
+	// Add diagnostics metadata under supernetes.ScopeExtra
 	for k, v := range workload.Meta.Extra {
-		labels[fmt.Sprintf("supernetes-extra/%s", k)] = v
+		labels[fmt.Sprintf("%s/%s", supernetes.ScopeExtra, k)] = v
 	}
 
-	return addGVK(&corev1.Pod{
+	// Virtual Kubelet always waits until the grace period, reducing
+	// it from the default (30 seconds) greatly speeds up pod deletion
+	var terminationGracePeriod int64 = 1
+
+	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName(workload, index),
 			Namespace: "supernetes-workload", // Namespace for untracked workloads TODO: make this configurable
@@ -65,8 +79,8 @@ func convertToPod(workload *api.Workload, node *string, index int) *corev1.Pod {
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
-				Name:                     "workload", // TODO: Move to common labels
-				Image:                    "none",     // TODO: Reasonable placeholder
+				Name:                     supernetes.ContainerPlaceholder,
+				Image:                    supernetes.ImagePlaceholder,
 				Command:                  nil,
 				Args:                     nil,
 				WorkingDir:               "",
@@ -92,11 +106,12 @@ func convertToPod(workload *api.Workload, node *string, index int) *corev1.Pod {
 			}}, // TODO: Can this be empty for untracked workloads?
 			NodeName: nodeName,
 			Tolerations: []corev1.Toleration{{
-				Key:      "supernetes-node/no-schedule", // TODO: Move to common code
+				Key:      supernetes.TaintNoSchedule,
 				Operator: corev1.TolerationOpExists,
 				Effect:   corev1.TaintEffectNoSchedule,
 			}},
-			SchedulingGates: schedulingGates,
+			SchedulingGates:               schedulingGates,
+			TerminationGracePeriodSeconds: &terminationGracePeriod,
 		},
 		Status: corev1.PodStatus{
 			Phase: workloadPhaseToPodPhase(workload.Status.Phase),
@@ -107,19 +122,28 @@ func convertToPod(workload *api.Workload, node *string, index int) *corev1.Pod {
 			//HostIPs: nil,
 			//PodIP:   "",
 			//PodIPs:  nil,
-			StartTime:         &metav1.Time{Time: time.Unix(workload.Status.StartTime, 0)},
-			ContainerStatuses: nil,
+			StartTime: &metav1.Time{Time: time.Unix(workload.Status.StartTime, 0)},
 		},
-	})
+	}
+
+	if err := util.AddGVK(pod); err != nil {
+		return nil, errors.Wrap(err, "unable to set GVK for pod")
+	}
+
+	return pod, nil
 }
 
 func podName(workload *api.Workload, index int) string {
-	return fmt.Sprintf("%s-%s-%d", toLowerRFC1123(workload.Meta.Identifier), toLowerRFC1123(workload.Meta.Name), index)
+	prefix := fmt.Sprintf("%s-", toLowerRFC1123(workload.Meta.Identifier, -1))
+	suffix := fmt.Sprintf("-%d", index)
+
+	// Pod names can be at most 63 characters long
+	return prefix + toLowerRFC1123(workload.Meta.Name, 63-len(prefix)-len(suffix)) + suffix
 }
 
-// toLowerRFC1123 converts the input string into a lowercase RFC 1123 compliant
-// string (without periods). Useful for constructing valid Pod names.
-func toLowerRFC1123(input string) string {
+// toLowerRFC1123 converts the input string into a lowercase RFC 1123 compliant string (without periods). Useful for
+// constructing valid Pod names. If maxLen is positive, the output string will be at most maxLen runes long.
+func toLowerRFC1123(input string, maxLen int) string {
 	var result []rune
 
 	for _, c := range strings.ToLower(input) {
@@ -131,6 +155,10 @@ func toLowerRFC1123(input string) string {
 			}
 
 			result = append(result, '-')
+		}
+
+		if maxLen > 0 && len(result) == maxLen {
+			break // Length limit reached
 		}
 	}
 
@@ -153,31 +181,4 @@ func workloadPhaseToPodPhase(phase api.WorkloadPhase) corev1.PodPhase {
 	}
 
 	panic(fmt.Sprintf("encountered invalid workload phase %q", phase))
-}
-
-// addGVK is a helper for essentially adding TypeMeta information to runtime.Objects.
-// This resolves a persistent issue with different components (such as fluxcd/pkg/ssa)
-// requiring it to be set: https://github.com/kubernetes-sigs/controller-runtime/issues/1735
-func addGVK[T interface {
-	runtime.Object
-	SetGroupVersionKind(gvk schema.GroupVersionKind) // This is compatible with metav1.TypeMeta
-}](object T) T {
-	gvks, unversioned, err := scheme.Scheme.ObjectKinds(object)
-	if err != nil {
-		log.Err(err).Msg("unable to set GVK for object")
-		return object
-	}
-
-	if !unversioned && len(gvks) == 1 {
-		object.SetGroupVersionKind(gvks[0])
-		return object // Success
-	}
-
-	log.Error().
-		Type("type", object).
-		Bool("unversioned", unversioned).
-		Int("GVK count", len(gvks)).
-		Msg("unable to set GVK for object")
-
-	return object
 }

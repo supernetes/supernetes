@@ -7,22 +7,29 @@
 package log
 
 import (
+	"context"
 	"fmt"
+	"slices"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	vklog "github.com/virtual-kubelet/virtual-kubelet/log"
 )
 
-type vkLogger struct {
-	l            zerolog.Logger
-	fields       vklog.Fields
-	errors       []error
-	clampToDebug bool
+type VKLoggerConfig struct {
+	ClampToDebug        bool // Reduce Info messages to Debug messages, assuming that the log level permits Info
+	SuppressCtxCanceled bool // If any of the errors match context.Canceled, skip printing the log entry
 }
 
-// VKLogger provides a Virtual Kubelet Logger-compatible logging interface. clampToDebug can be used to map Info
-// messages to be Debug messages, assuming that the log level permits Info, to decrease Virtual Kubelet verbosity.
-func VKLogger(scope *zerolog.Logger, clampToDebug bool) vklog.Logger {
+type vkLogger struct {
+	l      zerolog.Logger
+	fields vklog.Fields
+	errors []error
+	config VKLoggerConfig
+}
+
+// VKLogger provides a Virtual Kubelet Logger-compatible logging interface
+func VKLogger(scope *zerolog.Logger, config VKLoggerConfig) vklog.Logger {
 	if scope == nil {
 		scope = getLogger()
 	}
@@ -33,8 +40,8 @@ func VKLogger(scope *zerolog.Logger, clampToDebug bool) vklog.Logger {
 	})
 
 	return &vkLogger{
-		l:            l.With().CallerWithSkipFrameCount(4).Str("scope", "virtual-kubelet").Logger(),
-		clampToDebug: clampToDebug,
+		l:      l.With().CallerWithSkipFrameCount(4).Str("scope", "virtual-kubelet").Logger(),
+		config: config,
 	}
 }
 
@@ -47,7 +54,7 @@ func (v *vkLogger) Debugf(s string, i ...interface{}) {
 }
 
 func (v *vkLogger) Info(i ...interface{}) {
-	if v.clampToDebug {
+	if v.config.ClampToDebug {
 		v.Debug(i...)
 		return
 	}
@@ -56,7 +63,7 @@ func (v *vkLogger) Info(i ...interface{}) {
 }
 
 func (v *vkLogger) Infof(s string, i ...interface{}) {
-	if v.clampToDebug {
+	if v.config.ClampToDebug {
 		v.Debugf(s, i...)
 		return
 	}
@@ -131,11 +138,18 @@ func (v *vkLogger) msg(e *zerolog.Event, s string) {
 		e = e.Errs(fmt.Sprintf("%ss", zerolog.ErrorFieldName), v.errors)
 	}
 
+	if v.config.SuppressCtxCanceled && slices.ContainsFunc(v.errors, func(err error) bool {
+		return errors.Is(err, context.Canceled)
+	}) {
+		// Context cancellation error found and suppression was requested, discard the event
+		e = e.Discard()
+	}
+
 	e.Msg(s)
 }
 
 func (v *vkLogger) copy() *vkLogger {
-	l := &vkLogger{l: v.l, clampToDebug: v.clampToDebug}
+	l := &vkLogger{l: v.l, config: v.config}
 
 	if v.fields != nil {
 		l.fields = make(vklog.Fields)

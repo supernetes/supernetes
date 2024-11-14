@@ -16,8 +16,8 @@ import (
 	"al.essio.dev/pkg/shellescape"
 	"github.com/supernetes/supernetes/agent/pkg/agent"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
+	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/config/pkg/config"
-	"github.com/supernetes/supernetes/util/pkg/log"
 )
 
 /*
