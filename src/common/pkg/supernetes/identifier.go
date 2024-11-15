@@ -12,9 +12,11 @@ const TaintNoSchedule = ScopeNode + "/no-schedule"
 const ScopeWorkload = "supernetes-workload"
 const LabelWorkloadKind = ScopeWorkload + "/kind"
 const LabelWorkloadIdentifier = ScopeWorkload + "/idenfitier"
+const LabelAdditionalNodes = ScopeWorkload + "/additional-nodes"
 const SGWorkloadUnallocated = ScopeWorkload + "/unallocated"
 
 const ScopeExtra = "supernetes-extra"
+const ScopeOption = "supernetes-option"
 
 const ScopeController = "supernetes-controller"
 const Group = "supernetes" // TODO: Proper FQDN group for Supernetes

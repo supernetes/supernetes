@@ -7,9 +7,10 @@
 package sbatch
 
 import (
+	"os/exec"
+
 	"github.com/pkg/errors"
 	"github.com/supernetes/supernetes/common/pkg/log"
-	"os/exec"
 )
 
 func containerRuntime() string {

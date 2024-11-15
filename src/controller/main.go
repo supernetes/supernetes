@@ -19,6 +19,7 @@ import (
 	"github.com/supernetes/supernetes/controller/pkg/client"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
 	"github.com/supernetes/supernetes/controller/pkg/node"
+	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
 	"github.com/supernetes/supernetes/controller/pkg/workload"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -59,18 +60,22 @@ func main() {
 
 	log.FatalErr(vk.DisableKubeProxy(k8sConfig)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
 
+	workloadTracker := tracker.New()
 	ctx := context.Background()
 	nodeReconciler, err := node.NewReconciler(ctx, node.ReconcilerConfig{
-		Interval:  time.Minute,
-		Client:    ep.Node(),
-		K8sConfig: k8sConfig,
+		Interval:       time.Minute,
+		NodeClient:     ep.Node(),
+		WorkloadClient: ep.Workload(),
+		Tracker:        workloadTracker,
+		K8sConfig:      k8sConfig,
 	})
 	log.FatalErr(err).Msg("failed to create node reconciler")
 	workloadReconciler, err := workload.NewReconciler(ctx, workload.ReconcilerConfig{
-		Interval:     time.Minute,
-		Client:       ep.Workload(),
-		K8sConfig:    k8sConfig,
-		UpdateStatus: nodeReconciler.UpdateStatus,
+		Interval:      time.Minute,
+		Client:        ep.Workload(),
+		K8sConfig:     k8sConfig,
+		StatusUpdater: nodeReconciler,
+		Tracker:       workloadTracker,
 	})
 	log.FatalErr(err).Msg("failed to create workload reconciler")
 

@@ -34,7 +34,7 @@ func (j *Job) ConvertToApi(nodeFilter func(string) bool) *api.Workload {
 		Meta: &api.WorkloadMeta{
 			Name:       j.Name,
 			Identifier: strconv.Itoa(j.JobID),
-			Extra:      map[string]string{"job-state": j.JobState},
+			Extra:      map[string]string{"job-state": string(j.JobState)},
 			//Labels: labels,
 		},
 		//Spec: &api.WorkloadSpec{
@@ -45,7 +45,7 @@ func (j *Job) ConvertToApi(nodeFilter func(string) bool) *api.Workload {
 			Phase:     parseJobState(j.JobState),
 			StdOut:    readIo(j.JobID, "stout"),
 			StdErr:    readIo(j.JobID, "stderr"),
-			StartTime: j.StartTime,
+			StartTime: int64(j.StartTime.Number),
 			Nodes:     nodes,
 		},
 	}
@@ -67,7 +67,7 @@ func readIo(jobId int, kind string) string {
 	return string(data)
 }
 
-func parseJobState(jobState string) api.WorkloadPhase {
+func parseJobState(jobState JobState) api.WorkloadPhase {
 	// `scontrol` job state codes: https://slurm.schedmd.com/squeue.html#SECTION_JOB-STATE-CODES
 	switch jobState {
 	case "BF", "BOOT_FAIL":

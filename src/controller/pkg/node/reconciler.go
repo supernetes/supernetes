@@ -11,10 +11,12 @@ import (
 	"io"
 	"time"
 
+	"github.com/pkg/errors"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/controller/pkg/client"
 	"github.com/supernetes/supernetes/controller/pkg/reconciler"
+	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
 	"google.golang.org/protobuf/types/known/emptypb"
 	corev1 "k8s.io/api/core/v1"
@@ -44,7 +46,7 @@ func (i *instance) start(ctx context.Context) {
 	}
 
 	go func() {
-		if err := i.instance.Run(i.ctx, i.cancel); err != nil {
+		if err := i.instance.Run(i.ctx, i.cancel); err != nil && !errors.Is(err, context.Canceled) {
 			log.Err(err).Msg("failed to start Virtual Kubelet instance")
 		}
 	}()
@@ -57,16 +59,20 @@ func (i *instance) stop() {
 }
 
 type ReconcilerConfig struct {
-	Interval  time.Duration     // Reconciliation interval
-	Client    api.NodeApiClient // Client for accessing the node API
-	K8sConfig *rest.Config      // Configuration for accessing Kubernetes
+	Interval       time.Duration         // Reconciliation interval
+	NodeClient     api.NodeApiClient     // Client for accessing the node API
+	WorkloadClient api.WorkloadApiClient // Client for accessing the workload API
+	Tracker        tracker.Tracker       // Manager for tracked Pods
+	K8sConfig      *rest.Config          // Configuration for accessing Kubernetes
 }
 
 // nReconciler manages Virtual Kubelet instances
 type nReconciler struct {
-	client    api.NodeApiClient
-	k8sClient kubernetes.Interface
-	instances map[string]*instance
+	nodeClient     api.NodeApiClient
+	workloadClient api.WorkloadApiClient
+	tracker        tracker.Tracker
+	k8sClient      kubernetes.Interface
+	instances      map[string]*instance
 }
 
 // nReconcilerAdapter is a helper for adding additional methods to nReconciler
@@ -77,7 +83,7 @@ type nReconcilerAdapter struct {
 
 type Reconciler interface {
 	reconciler.Reconciler
-	UpdateStatus(ctx context.Context, pod *corev1.Pod) error
+	tracker.StatusUpdater
 }
 
 func NewReconciler(ctx context.Context, config ReconcilerConfig) (Reconciler, error) {
@@ -88,9 +94,11 @@ func NewReconciler(ctx context.Context, config ReconcilerConfig) (Reconciler, er
 
 	logger := log.Scoped().Str("type", "node").Logger()
 	nr := &nReconciler{
-		client:    config.Client,
-		k8sClient: k8sClient,
-		instances: make(map[string]*instance),
+		nodeClient:     config.NodeClient,
+		workloadClient: config.WorkloadClient,
+		tracker:        config.Tracker,
+		k8sClient:      k8sClient,
+		instances:      make(map[string]*instance),
 	}
 	r, err := reconciler.New(ctx, &logger, config.Interval, nr)
 	if err != nil {
@@ -101,7 +109,7 @@ func NewReconciler(ctx context.Context, config ReconcilerConfig) (Reconciler, er
 }
 
 func (r *nReconciler) Reconcile(ctx context.Context) error {
-	stream, err := r.client.GetNodes(ctx, &emptypb.Empty{})
+	stream, err := r.nodeClient.GetNodes(ctx, &emptypb.Empty{})
 	if err != nil {
 		return err
 	}
@@ -123,10 +131,12 @@ func (r *nReconciler) Reconcile(ctx context.Context) error {
 
 		if i, ok := r.instances[node.Meta.Name]; ok {
 			// Existing node, still tracked
+			// TODO: Need to check here whether the node actually still exists as a resource. If not, the most atomic
+			//  way to get it back is to re-create the instance.
 			i.tracked = true
 		} else {
 			// New node, create a new instance for it
-			r.instances[node.Meta.Name] = newInstance(vk.NewInstance(r.k8sClient, node))
+			r.instances[node.Meta.Name] = newInstance(vk.NewInstance(r.k8sClient, node, r.workloadClient, r.tracker))
 		}
 	}
 
@@ -149,13 +159,13 @@ func (r *nReconciler) Reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (r *nReconcilerAdapter) UpdateStatus(ctx context.Context, pod *corev1.Pod) error {
+func (r *nReconcilerAdapter) UpdateStatus(ctx context.Context, pod *corev1.Pod, cache bool) error {
 	if pod.Spec.NodeName == "" {
 		return nil // Pod is not scheduled onto any node
 	}
 
 	if instance, ok := r.reconciler.instances[pod.Spec.NodeName]; ok {
-		return instance.instance.UpdateStatus(ctx, pod)
+		return instance.instance.UpdateStatus(ctx, pod, cache)
 	}
 
 	return nil // Pod is associated with unknown node

@@ -8,13 +8,14 @@ package node
 
 import "github.com/supernetes/supernetes/agent/pkg/scontrol"
 
-// TODO: Make sure all the UNIX timestamp fields are int64
+// TODO: Make sure all the UNIX timestamp fields are at least int64
 
 type Data struct {
-	Meta     Meta   `json:"meta"`
-	Nodes    []Node `json:"nodes"`
-	Warnings []any  `json:"warnings"`
-	Errors   []any  `json:"errors"`
+	LastUpdate scontrol.Number `json:"last_update,omitempty"` // Absent on LUMI, present on Mahti
+	Meta       scontrol.Meta   `json:"meta"`
+	Nodes      []Node          `json:"nodes"`
+	Warnings   []any           `json:"warnings"`
+	Errors     []any           `json:"errors"`
 }
 
 func (d *Data) GetWarnings() []any {
@@ -23,28 +24,6 @@ func (d *Data) GetWarnings() []any {
 
 func (d *Data) GetErrors() []any {
 	return d.Errors
-}
-
-type Plugins struct {
-	DataParser        string `json:"data_parser"`
-	AccountingStorage string `json:"accounting_storage"`
-}
-
-type Version struct {
-	Major int `json:"major"`
-	Micro int `json:"micro"`
-	Minor int `json:"minor"`
-}
-
-type Slurm struct {
-	Version Version `json:"version"`
-	Release string  `json:"release"`
-}
-
-type Meta struct {
-	Plugins Plugins  `json:"plugins"`
-	Command []string `json:"command"`
-	Slurm   Slurm    `json:"Slurm"`
 }
 
 type Energy struct {
@@ -70,7 +49,7 @@ type Power struct {
 	NewMaximumWatts int             `json:"new_maximum_watts"`
 	PeakWatts       int             `json:"peak_watts"`
 	LowestWatts     int             `json:"lowest_watts"`
-	NewJobTime      int             `json:"new_job_time"`
+	NewJobTime      scontrol.Number `json:"new_job_time"` // Integer on LUMI, scontrol.Number on Mahti
 	State           int             `json:"state"`
 	TimeStartDay    int             `json:"time_start_day"`
 }
@@ -79,12 +58,12 @@ type Node struct {
 	Architecture              string          `json:"architecture"`
 	BurstbufferNetworkAddress string          `json:"burstbuffer_network_address"`
 	Boards                    int             `json:"boards"`
-	BootTime                  int             `json:"boot_time"`
+	BootTime                  scontrol.Number `json:"boot_time"` // Integer on LUMI, scontrol.Number on Mahti
 	ClusterName               string          `json:"cluster_name"`
 	Cores                     int             `json:"cores"`
 	SpecializedCores          int             `json:"specialized_cores"`
 	CPUBinding                int             `json:"cpu_binding"`
-	CPULoad                   scontrol.Number `json:"cpu_load"`
+	CPULoad                   scontrol.Number `json:"cpu_load"` // scontrol.Number on LUMI, integer on Mahti
 	FreeMem                   scontrol.Number `json:"free_mem"`
 	Cpus                      int             `json:"cpus"`
 	EffectiveCpus             int             `json:"effective_cpus"`
@@ -98,7 +77,9 @@ type Node struct {
 	Gres                      string          `json:"gres"`
 	GresDrained               string          `json:"gres_drained"`
 	GresUsed                  string          `json:"gres_used"`
-	LastBusy                  int             `json:"last_busy"`
+	InstanceId                string          `json:"instance_id,omitempty"`   // Absent on LUMI, present on Mahti
+	InstanceType              string          `json:"instance_type,omitempty"` // Absent on LUMI, present on Mahti
+	LastBusy                  scontrol.Number `json:"last_busy"`               // Integer on LUMI, scontrol.Number on Mahti
 	McsLabel                  string          `json:"mcs_label"`
 	SpecializedMemory         int             `json:"specialized_memory"`
 	Name                      string          `json:"name"`
@@ -113,7 +94,7 @@ type Node struct {
 	RealMemory                int             `json:"real_memory"`
 	Comment                   string          `json:"comment"`
 	Reason                    string          `json:"reason"`
-	ReasonChangedAt           int             `json:"reason_changed_at"`
+	ReasonChangedAt           scontrol.Number `json:"reason_changed_at"` // Integer on LUMI, scontrol.Number on Mahti
 	ReasonSetByUser           string          `json:"reason_set_by_user"`
 	ResumeAfter               scontrol.Number `json:"resume_after"`
 	Reservation               string          `json:"reservation"`
@@ -122,7 +103,7 @@ type Node struct {
 	AllocIdleCpus             int             `json:"alloc_idle_cpus"`
 	TresUsed                  string          `json:"tres_used"`
 	TresWeighted              float64         `json:"tres_weighted"`
-	SlurmdStartTime           int             `json:"slurmd_start_time"`
+	SlurmdStartTime           scontrol.Number `json:"slurmd_start_time"` // Integer on LUMI, scontrol.Number on Mahti
 	Sockets                   int             `json:"sockets"`
 	Threads                   int             `json:"threads"`
 	TemporaryDisk             int             `json:"temporary_disk"`

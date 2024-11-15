@@ -8,10 +8,13 @@ package sbatch
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"maps"
 	"os/exec"
 	"path"
 	"regexp"
+	"strings"
 
 	"al.essio.dev/pkg/shellescape"
 	"github.com/supernetes/supernetes/agent/pkg/agent"
@@ -45,44 +48,85 @@ func NewRuntime(config *config.SlurmConfig) Runtime {
 	}
 }
 
-var jobIdRegex = regexp.MustCompile(`^Submitted batch job (\\d+)$`)
+var jobIdRegex = regexp.MustCompile(`^Submitted batch job (\d+)\n$`)
 
 func (r *runtime) Run(workload *api.Workload) (string, error) {
-	output := bytes.NewBuffer(nil)
-	cmd := exec.Command("sbatch") // `srun` can only run synchronously
-	cmd.Stdin = bytes.NewReader([]byte(r.composeScript(workload)))
-	cmd.Stdout = output
-	if err := cmd.Run(); err != nil {
+	script, err := r.composeScript(workload)
+	if err != nil {
+		log.Err(err).Msg("failed to compose sbatch script")
 		return "", err
 	}
 
-	match := jobIdRegex.FindSubmatch(output.Bytes())
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
+	cmd := exec.Command("sbatch") // `srun` can only run synchronously
+	cmd.Stdin = bytes.NewReader([]byte(script))
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Run(); err != nil {
+		log.Error().
+			Bytes("stderr", stderr.Bytes()).
+			Msg("sbatch execution failed")
+
+		return "", err
+	}
+
+	match := jobIdRegex.FindSubmatch(stdout.Bytes())
 	if len(match) != 2 {
-		return "", fmt.Errorf("failed to parse scontrol output")
+		log.Error().
+			Bytes("stdout", stdout.Bytes()).
+			Msg("sbatch didn't produce the expected output")
+
+		return "", errors.New("failed to parse sbatch output")
 	}
 
 	return string(match[1]), nil
 }
 
-func (r *runtime) composeScript(workload *api.Workload) string {
+func (r *runtime) composeScript(workload *api.Workload) (string, error) {
 	sbatchOpts := map[string]string{
+		"job-name":  workload.Meta.Name,
 		"account":   r.config.Account,
 		"partition": r.config.Partition,
 		// https://slurm.schedmd.com/sbatch.html#SECTION_FILENAME-PATTERN
-		"output": path.Join(agent.IoDir(), "%j.stout"),
-		"error":  path.Join(agent.IoDir(), "%j.stderr"),
+		"output":   path.Join(agent.IoDir(), "%j.stout"),
+		"error":    path.Join(agent.IoDir(), "%j.stderr"),
+		"nodelist": strings.Join(workload.Spec.NodeNames, ","),
 	}
+
+	extraOpts := make(map[string]string)
+	for option, value := range workload.Spec.JobOptions {
+		// Overriding the Supernetes-managed options is not permitted
+		if _, ok := sbatchOpts[option]; ok {
+			return "", fmt.Errorf("overriding option %q is not permitted", option)
+		}
+
+		extraOpts[option] = value
+	}
+
+	if len(workload.Spec.NodeNames) == 0 {
+		delete(sbatchOpts, "nodelist") // No node list was given
+	}
+
+	// Incorporate the extra options for sbatch
+	maps.Copy(sbatchOpts, extraOpts)
 
 	script := "#!/bin/sh\n"
 	for k, v := range sbatchOpts {
 		script += fmt.Sprintf("#SBATCH --%s %q\n", k, v)
 	}
 
+	command := "run"
+	if len(workload.Spec.Command) > 0 {
+		command = "exec" // Allows for overriding the container ENTRYPOINT
+	}
+
 	script += shellescape.QuoteCommand(append(
-		[]string{r.containerRuntime, "exec", "--compat", fmt.Sprintf("docker://%s", workload.Spec.Image)},
-		workload.Spec.Args...,
+		[]string{r.containerRuntime, command, "--compat", fmt.Sprintf("docker://%s", workload.Spec.Image)},
+		append(workload.Spec.Command, workload.Spec.Args...)...,
 	))
 
 	log.Debug().Str("script", script).Msg("composed sbatch script")
-	return script
+	return script, nil
 }

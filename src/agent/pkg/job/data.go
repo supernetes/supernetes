@@ -8,13 +8,15 @@ package job
 
 import "github.com/supernetes/supernetes/agent/pkg/scontrol"
 
-// TODO: Make sure all the UNIX timestamp fields are int64
+// TODO: Make sure all the UNIX timestamp fields are at least int64
 
 type Data struct {
-	Meta     Meta  `json:"meta"`
-	Jobs     []Job `json:"jobs"`
-	Warnings []any `json:"warnings"`
-	Errors   []any `json:"errors"`
+	Meta         scontrol.Meta   `json:"meta"`
+	Jobs         []Job           `json:"jobs"`
+	LastBackfill scontrol.Number `json:"last_backfill,omitempty"` // Present on Mahti, absent on LUMI
+	LastUpdate   scontrol.Number `json:"last_update,omitempty"`   // Present on Mahti, absent on LUMI
+	Warnings     []any           `json:"warnings"`
+	Errors       []any           `json:"errors"`
 }
 
 func (d *Data) GetWarnings() []any {
@@ -25,39 +27,15 @@ func (d *Data) GetErrors() []any {
 	return d.Errors
 }
 
-type Plugins struct {
-	DataParser        string `json:"data_parser"`
-	AccountingStorage string `json:"accounting_storage"`
-}
-
-type Version struct {
-	Major int `json:"major"`
-	Micro int `json:"micro"`
-	Minor int `json:"minor"`
-}
-
-type Slurm struct {
-	Version Version `json:"version"`
-	Release string  `json:"release"`
-}
-
-type Meta struct {
-	Plugins Plugins  `json:"plugins"`
-	Command []string `json:"command"`
-	Slurm   Slurm    `json:"Slurm"`
-}
-
 type Power struct {
 	Flags []any `json:"flags"`
 }
 
 type Socket struct {
-	//Cores Cores `json:"cores"`
 	Cores map[int]string `json:"cores"`
 }
 
 type AllocatedNode struct {
-	//Sockets         Sockets `json:"sockets"`
 	Sockets         map[int]Socket `json:"sockets"`
 	Nodename        string         `json:"nodename"`
 	CpusUsed        int            `json:"cpus_used"`
@@ -75,7 +53,7 @@ type JobResources struct {
 
 type Job struct {
 	Account                  string          `json:"account"`
-	AccrueTime               int64           `json:"accrue_time"`
+	AccrueTime               scontrol.Number `json:"accrue_time"` // Integer on LUMI, scontrol.Number on Mahti
 	AdminComment             string          `json:"admin_comment"`
 	AllocatingNode           string          `json:"allocating_node"`
 	ArrayJobID               scontrol.Number `json:"array_job_id"`
@@ -106,12 +84,12 @@ type Job struct {
 	CPUFrequencyGovernor     scontrol.Number `json:"cpu_frequency_governor"`
 	CpusPerTres              string          `json:"cpus_per_tres"`
 	Cron                     string          `json:"cron"`
-	Deadline                 int             `json:"deadline"`
+	Deadline                 scontrol.Number `json:"deadline"` // Integer on LUMI, scontrol.Number on Mahti
 	DelayBoot                scontrol.Number `json:"delay_boot"`
 	Dependency               string          `json:"dependency"`
 	DerivedExitCode          scontrol.Number `json:"derived_exit_code"`
-	EligibleTime             int64           `json:"eligible_time"`
-	EndTime                  int64           `json:"end_time"`
+	EligibleTime             scontrol.Number `json:"eligible_time"` // Integer on LUMI, scontrol.Number on Mahti
+	EndTime                  scontrol.Number `json:"end_time"`      // Integer on LUMI, scontrol.Number on Mahti
 	ExcludedNodes            string          `json:"excluded_nodes"`
 	ExitCode                 scontrol.Number `json:"exit_code"`
 	Extra                    string          `json:"extra"`
@@ -129,8 +107,8 @@ type Job struct {
 	JobID                    int             `json:"job_id"`
 	JobResources             JobResources    `json:"job_resources,omitempty"`
 	JobSizeStr               []string        `json:"job_size_str"`
-	JobState                 string          `json:"job_state"`
-	LastSchedEvaluation      int64           `json:"last_sched_evaluation"`
+	JobState                 JobState        `json:"job_state"`
+	LastSchedEvaluation      scontrol.Number `json:"last_sched_evaluation"` // Integer on LUMI, scontrol.Number on Mahti
 	Licenses                 string          `json:"licenses"`
 	MailType                 []string        `json:"mail_type"`
 	MailUser                 string          `json:"mail_user"`
@@ -157,9 +135,9 @@ type Job struct {
 	MinimumCpusPerNode       scontrol.Number `json:"minimum_cpus_per_node"`
 	MinimumTmpDiskPerNode    scontrol.Number `json:"minimum_tmp_disk_per_node"`
 	Power                    Power           `json:"power"`
-	PreemptTime              int             `json:"preempt_time"`
-	PreemptableTime          int             `json:"preemptable_time"`
-	PreSusTime               int             `json:"pre_sus_time"`
+	PreemptTime              scontrol.Number `json:"preempt_time"`     // Integer on LUMI, scontrol.Number on Mahti
+	PreemptableTime          scontrol.Number `json:"preemptable_time"` // Integer on LUMI, scontrol.Number on Mahti
+	PreSusTime               scontrol.Number `json:"pre_sus_time"`     // Integer on LUMI, scontrol.Number on Mahti
 	Hold                     bool            `json:"hold"`
 	Priority                 scontrol.Number `json:"priority"`
 	Profile                  []string        `json:"profile"`
@@ -168,7 +146,7 @@ type Job struct {
 	RequiredNodes            string          `json:"required_nodes"`
 	MinimumSwitches          int             `json:"minimum_switches"`
 	Requeue                  bool            `json:"requeue"`
-	ResizeTime               int             `json:"resize_time"`
+	ResizeTime               scontrol.Number `json:"resize_time"` // Integer on LUMI, scontrol.Number on Mahti
 	RestartCnt               int             `json:"restart_cnt"`
 	ResvName                 string          `json:"resv_name"`
 	ScheduledNodes           string          `json:"scheduled_nodes"`
@@ -179,14 +157,14 @@ type Job struct {
 	ShowFlags                []string        `json:"show_flags"`
 	SocketsPerBoard          int             `json:"sockets_per_board"`
 	SocketsPerNode           scontrol.Number `json:"sockets_per_node"`
-	StartTime                int64           `json:"start_time"`
+	StartTime                scontrol.Number `json:"start_time"` // Integer on LUMI, scontrol.Number on Mahti
 	StateDescription         string          `json:"state_description"`
 	StateReason              string          `json:"state_reason"`
 	StandardError            string          `json:"standard_error"`
 	StandardInput            string          `json:"standard_input"`
 	StandardOutput           string          `json:"standard_output"`
-	SubmitTime               int64           `json:"submit_time"`
-	SuspendTime              int64           `json:"suspend_time"`
+	SubmitTime               scontrol.Number `json:"submit_time"`  // Integer on LUMI, scontrol.Number on Mahti
+	SuspendTime              scontrol.Number `json:"suspend_time"` // Integer on LUMI, scontrol.Number on Mahti
 	SystemComment            string          `json:"system_comment"`
 	TimeLimit                scontrol.Number `json:"time_limit"`
 	TimeMinimum              scontrol.Number `json:"time_minimum"`

@@ -18,7 +18,7 @@ import (
 	"github.com/supernetes/supernetes/controller/pkg/client"
 	"github.com/supernetes/supernetes/controller/pkg/inventory"
 	"github.com/supernetes/supernetes/controller/pkg/reconciler"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,21 +27,21 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-type updateStatusFunc func(ctx context.Context, pod *corev1.Pod) error
-
 type ReconcilerConfig struct {
-	Interval     time.Duration         // Reconciliation interval
-	Client       api.WorkloadApiClient // Client for accessing the workload API
-	K8sConfig    *rest.Config          // Configuration for accessing Kubernetes
-	UpdateStatus updateStatusFunc      // Callback to trigger manual Pod status updates
+	Interval      time.Duration         // Reconciliation interval
+	Client        api.WorkloadApiClient // Client for accessing the workload API
+	K8sConfig     *rest.Config          // Configuration for accessing Kubernetes
+	StatusUpdater tracker.StatusUpdater // Callback to trigger manual Pod status updates
+	Tracker       tracker.Tracker       // Manager for tracked Pods
 }
 
 type wlReconciler struct {
-	client       api.WorkloadApiClient
-	updateStatus updateStatusFunc
-	resMgr       *ssa.ResourceManager
-	k8sClient    kubernetes.Interface
-	inventory    inventory.Inventory
+	client        api.WorkloadApiClient
+	statusUpdater tracker.StatusUpdater
+	tracker       tracker.Tracker
+	resMgr        *ssa.ResourceManager
+	k8sClient     kubernetes.Interface
+	inventory     inventory.Inventory
 }
 
 func NewReconciler(ctx context.Context, config ReconcilerConfig) (reconciler.Reconciler, error) {
@@ -62,10 +62,11 @@ func NewReconciler(ctx context.Context, config ReconcilerConfig) (reconciler.Rec
 
 	logger := log.Scoped().Str("type", "workload").Logger()
 	return reconciler.New(ctx, &logger, config.Interval, &wlReconciler{
-		client:       config.Client,
-		updateStatus: config.UpdateStatus,
-		resMgr:       resMgr,
-		k8sClient:    k8sClient,
+		client:        config.Client,
+		statusUpdater: config.StatusUpdater,
+		tracker:       config.Tracker,
+		resMgr:        resMgr,
+		k8sClient:     k8sClient,
 	})
 }
 
@@ -122,8 +123,16 @@ func (r *wlReconciler) Reconcile(ctx context.Context) error {
 			if change.Action == ssa.CreatedAction || change.Action == ssa.UnchangedAction {
 				// For any created Pods or Pods with an unchanged PodSpec (but possibly changed
 				// PodStatus), we need to perform a manual status update in the provider
-				if err := r.updateStatus(ctx, pods[i]); err != nil {
+				if err := r.statusUpdater.UpdateStatus(ctx, pods[i], true); err != nil {
 					return err
+				}
+
+				// If this is the primary Pod (index 0), also update the corresponding tracked Pod
+				// (if present). Tracked Pod status updates should not be cached in the provider.
+				if i == 0 {
+					if err := r.tracker.UpdateStatus(ctx, pods[0], false); err != nil {
+						return err
+					}
 				}
 			}
 
