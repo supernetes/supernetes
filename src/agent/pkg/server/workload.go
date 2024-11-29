@@ -13,6 +13,7 @@ import (
 	"github.com/supernetes/supernetes/agent/pkg/filter"
 	"github.com/supernetes/supernetes/agent/pkg/job"
 	"github.com/supernetes/supernetes/agent/pkg/sbatch"
+	"github.com/supernetes/supernetes/agent/pkg/scancel"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"google.golang.org/grpc"
@@ -42,6 +43,8 @@ func (s *workloadServer) Create(_ context.Context, workload *api.Workload) (*api
 		return nil, err
 	}
 
+	log.Debug().Str("id", jobId).Msg("job dispatched")
+
 	// Update job id tracking label
 	workload.Meta.Identifier = jobId
 	return workload.Meta, nil
@@ -53,13 +56,12 @@ func (s *workloadServer) Update(ctx context.Context, workload *api.Workload) (*e
 	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
 
-func (s *workloadServer) Delete(ctx context.Context, workload *api.Workload) (*emptypb.Empty, error) {
+// Delete for Slurm just means cancelling the job, it's the best we can do
+func (s *workloadServer) Delete(ctx context.Context, workload *api.WorkloadMeta) (*emptypb.Empty, error) {
 	log.Debug().Stringer("workload", workload).Msg("Delete invoked")
-
-	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+	return nil, scancel.Run(workload)
 }
 
-// TODO: This needs to track the Slurm job ID of the workload in the annotation
 func (s *workloadServer) Get(ctx context.Context, workloadMeta *api.WorkloadMeta) (*api.Workload, error) {
 	log.Debug().Stringer("workloadMeta", workloadMeta).Msg("Get invoked")
 

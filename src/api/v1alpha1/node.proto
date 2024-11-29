@@ -22,7 +22,7 @@ message NodeMeta {
   string name = 1;
 }
 
-// Data description for workloads, similar to `spec` in Kubernetes resource definitions
+// Data description for workloads, similar to .spec in Kubernetes resource definitions
 message NodeSpec {
   // TODO: CPUs etc.
 }

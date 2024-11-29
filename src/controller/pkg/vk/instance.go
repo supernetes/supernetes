@@ -14,9 +14,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
+	suerr "github.com/supernetes/supernetes/common/pkg/error"
 	sulog "github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/common/pkg/supernetes"
 	"github.com/supernetes/supernetes/controller/pkg/provider"
+	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	vklog "github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
@@ -34,32 +36,38 @@ import (
 type Instance interface {
 	// Run starts the instance's controllers. The controllers use cancel() to stop each other.
 	Run(ctx context.Context, cancel func()) error
-	// UpdateStatus can be used to trigger Pod status updates in the associated Pod provider
-	UpdateStatus(ctx context.Context, pod *corev1.Pod) error
+	// StatusUpdater can be used to trigger Pod status updates in the associated Pod provider
+	tracker.StatusUpdater
 }
 
 type instance struct {
-	cfg         *nodeutil.NodeConfig
-	podProvider provider.PodProvider
+	cfg            *nodeutil.NodeConfig
+	podProvider    provider.PodProvider
+	workloadClient api.WorkloadApiClient
+	tracker        tracker.Tracker
 }
 
 // TODO: This doesn't re-create the node if it's deleted from the API server
 //  However, it should now support invoking Instance.Run multiple times to solve that
 
-// NewInstance creates a new Instance for the given node.
-func NewInstance(client kubernetes.Interface, n *api.Node) Instance {
-	// TODO: This needs to be properly populated based on `n`
+// NewInstance creates a new Instance for the given node
+func NewInstance(client kubernetes.Interface, node *api.Node, workloadClient api.WorkloadApiClient, tracker tracker.Tracker) Instance {
+	// TODO: This needs to be properly populated based on `node`
+	// TODO: That includes labeling/tainting the node with its partitions, so that the Kubernetes scheduler doesn't
+	//  attempt to schedule workloads onto nodes that can't receive them. This also requires, that the controller is
+	//  either aware of the partition used by the agent, or that the agent can tell it which partitions it can schedule
+	//  to. Also keep in mind the future support of labeling/annotating the partition that should be used in the pod.
 	cfg := nodeutil.NodeConfig{
 		Client:               client,
-		NumWorkers:           1, // TODO: Scaling
-		InformerResyncPeriod: time.Minute,
+		NumWorkers:           1,           // TODO: Scaling
+		InformerResyncPeriod: time.Minute, // TODO: Configurability
 		NodeSpec: corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: n.Meta.Name,
+				Name: node.Meta.Name,
 				Labels: map[string]string{
 					"type":                   supernetes.NodeTypeVirtualKubelet,
 					"kubernetes.io/role":     supernetes.NodeRoleSupernetes,
-					"kubernetes.io/hostname": n.Meta.Name,
+					"kubernetes.io/hostname": node.Meta.Name,
 				},
 			},
 			Spec: corev1.NodeSpec{
@@ -88,7 +96,9 @@ func NewInstance(client kubernetes.Interface, n *api.Node) Instance {
 	}
 
 	return &instance{
-		cfg: &cfg,
+		cfg:            &cfg,
+		workloadClient: workloadClient,
+		tracker:        tracker,
 	}
 }
 
@@ -100,7 +110,7 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 
 	// Configure the error handler for status updates
 	cfg.NodeStatusUpdateErrorHandler = func(_ context.Context, err error) error {
-		if !errors.Is(err, context.Canceled) {
+		if !suerr.IsContextCanceled(err) {
 			log.Err(err).Msg("status update failed")
 		}
 
@@ -138,7 +148,7 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 
 	// Set up pod controller
 	podProviderLogger := log.With().Str("scope", "provider").Logger()
-	i.podProvider = provider.NewPodProvider(&podProviderLogger)
+	i.podProvider = provider.NewPodProvider(&podProviderLogger, nodeName, i.workloadClient, i.tracker)
 	podControllerCfg := node.PodControllerConfig{
 		PodClient:         cfg.Client.CoreV1(),
 		EventRecorder:     cfg.EventRecorder,
@@ -171,7 +181,7 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 
 		// Start recoding pod controller events
 		log.Debug().Msg("starting event broadcaster for pod controller")
-		podEvents.StartLogging(log.Debug().Str("scope", "pod-events").Msgf) // TODO: Log pod controller events?
+		podEvents.StartLogging(log.Debug().Str("scope", "pod-events").Msgf)
 		podEvents.StartRecordingToSink(&corev1client.EventSinkImpl{
 			Interface: cfg.Client.CoreV1().Events(corev1.NamespaceAll),
 		})
@@ -179,7 +189,10 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 
 		log.Debug().Msg("starting pod controller")
 		if err := podController.Run(ctx, cfg.NumWorkers); err != nil {
-			log.Err(err).Msg("running pod controller failed")
+			if !suerr.IsContextCanceled(err) {
+				log.Err(err).Msg("running pod controller failed")
+			}
+
 			return
 		}
 
@@ -200,7 +213,10 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 		defer cancel()
 		log.Debug().Msg("starting node controller")
 		if err := nodeController.Run(ctx); err != nil {
-			log.Err(err).Msg("running node controller failed")
+			if !suerr.IsContextCanceled(err) {
+				log.Err(err).Msg("running node controller failed")
+			}
+
 			return
 		}
 
@@ -229,13 +245,13 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 	return errors.Wrap(nodeProvider.UpdateStatus(ctx, nodeReady), "error marking node as ready")
 }
 
-func (i *instance) UpdateStatus(ctx context.Context, pod *corev1.Pod) error {
+func (i *instance) UpdateStatus(ctx context.Context, pod *corev1.Pod, cache bool) error {
 	// This is a no-op if the instance is not running
 	if i.podProvider == nil {
 		return nil
 	}
 
-	return i.podProvider.UpdateStatus(ctx, pod)
+	return i.podProvider.UpdateStatus(ctx, pod, cache)
 }
 
 func setReady(n *corev1.Node) *corev1.Node {

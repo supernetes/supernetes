@@ -17,7 +17,7 @@ option go_package = "module github.com/supernetes/supernetes/api/v1alpha1";
 service WorkloadApi {
   rpc Create (Workload) returns (WorkloadMeta);
   rpc Update (Workload) returns (google.protobuf.Empty);
-  rpc Delete (Workload) returns (google.protobuf.Empty);
+  rpc Delete (WorkloadMeta) returns (google.protobuf.Empty);
   rpc Get (WorkloadMeta) returns (Workload);
   rpc GetStatus (WorkloadMeta) returns (WorkloadStatus);
   rpc List (google.protobuf.Empty) returns (stream Workload);
@@ -30,10 +30,17 @@ message WorkloadMeta {
   map<string, string> extra = 3; // Extra metadata for debugging etc.
 }
 
-// Data description for workloads, similar to `spec` in Kubernetes resource definitions
+// Data description for workloads, similar to .spec in Kubernetes resource definitions
 message WorkloadSpec {
   string image = 1;
-  repeated string args = 2;
+  repeated string command = 2; // Container ENTRYPOINT override (optional)
+  repeated string args = 3; // Container CMD override (optional)
+  // Set of nodes that the workload should be attempted to be scheduled onto.
+  // May be non-exhaustive, in which case the HPC-side scheduler decides.
+  repeated string node_names = 4;
+  // Additional HPC-runtime-specific options. Keys should be specified in their most verbose
+  // form without common prefixes/suffixes, for example, as full flags without the "--" prefix.
+  map<string, string> job_options = 5;
 }
 
 // Describes all states a workload can be in during its lifecycle
@@ -46,7 +53,7 @@ enum WorkloadPhase {
   Unknown = 4;
 }
 
-// Status description for workloads, similar to `status` in Kubernetes resource definitions
+// Status description for workloads, similar to .status in Kubernetes resource definitions
 message WorkloadStatus {
   WorkloadPhase phase = 1;
   string std_out = 2; // TODO: Delta updates for verbose workloads?

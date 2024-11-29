@@ -47,6 +47,7 @@ func New(ctx context.Context, logger *zerolog.Logger, interval time.Duration, im
 
 	return &reconciler{
 		ctx:      ctx,
+		cancel:   func() {},
 		log:      logger,
 		interval: interval,
 		impl:     impl,

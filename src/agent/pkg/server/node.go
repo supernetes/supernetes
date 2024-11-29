@@ -35,7 +35,9 @@ func (s *nodeServer) GetNodes(_ *emptypb.Empty, a grpc.ServerStreamingServer[api
 
 	nodeData, err := node.ReadNodeData(nil)
 	if err != nil {
-		return errors.WithMessage(err, "unable to read node info")
+		msg := "failed to read node data from Slurm"
+		log.Err(err).Msg(msg)
+		return errors.New(msg)
 	}
 
 	filteredCount := 0
