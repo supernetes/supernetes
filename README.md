@@ -1,7 +1,6 @@
 # Supernetes
 
 [![Go Report Card for `agent`](https://goreportcard.com/badge/github.com/supernetes/supernetes/agent)](https://goreportcard.com/report/github.com/supernetes/supernetes/agent)
-[![Go Report Card for `api`](https://goreportcard.com/badge/github.com/supernetes/supernetes/api)](https://goreportcard.com/report/github.com/supernetes/supernetes/api)
 [![Go Report Card for `common`](https://goreportcard.com/badge/github.com/supernetes/supernetes/common)](https://goreportcard.com/report/github.com/supernetes/supernetes/common)
 [![Go Report Card for `config`](https://goreportcard.com/badge/github.com/supernetes/supernetes/config)](https://goreportcard.com/report/github.com/supernetes/supernetes/config)
 [![Go Report Card for `controller`](https://goreportcard.com/badge/github.com/supernetes/supernetes/controller)](https://goreportcard.com/report/github.com/supernetes/supernetes/controller)
