@@ -20,7 +20,7 @@ resources:
 # - path: ...
 ```
 
-If you make the `deployment` directory a Git repository, it can then be fed into a GitOps tool, such as [Flux](https://fluxcd.io/) or [Argo CD](https://argoproj.github.io/cd/). Alternatively, you can also directly apply the manifests into your cluster with
+If you make the `deployment` directory a Git repository, it can then be fed into a GitOps tool, such as [FluxCD](https://fluxcd.io/) or [Argo CD](https://argoproj.github.io/cd/). An example configuration for FluxCD is provided [in the bootstrap repository](https://github.com/supernetes/bootstrap/tree/master/work/manifests/flux). Alternatively, you can also directly apply the manifests into your cluster with
 
 ```shell
 kubectl apply -k deployment
