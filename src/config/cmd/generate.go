@@ -38,10 +38,10 @@ func NewCmdGenerate() *cobra.Command {
 			        --controller-port 12345 \
 			        --controller-secret-name custom-supernetes-config \
 			        --controller-secret-namespace custom-supernetes-namespace \
-					--slurm-account project_123456789 \
-					--slurm-partition standard \
-					--filter-partition '^(?:standard)|(?:bench)$' \
-					--filter-node '^nid0010[0-9]{2}$' \
+			        --slurm-account project_123456789 \
+			        --slurm-partition standard \
+			        --filter-partition '^(?:standard)|(?:bench)$' \
+			        --filter-node '^nid0010[0-9]{2}$' \
 			        --cert-days-valid 365
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
