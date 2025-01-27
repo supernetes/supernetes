@@ -15,6 +15,7 @@ import (
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/controller/pkg/client"
+	"github.com/supernetes/supernetes/controller/pkg/metrics"
 	"github.com/supernetes/supernetes/controller/pkg/reconciler"
 	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
@@ -62,16 +63,18 @@ type ReconcilerConfig struct {
 	Interval       time.Duration         // Reconciliation interval
 	NodeClient     api.NodeApiClient     // Client for accessing the node API
 	WorkloadClient api.WorkloadApiClient // Client for accessing the workload API
-	Tracker        tracker.Tracker       // Manager for tracked Pods
 	K8sConfig      *rest.Config          // Configuration for accessing Kubernetes
+	Tracker        tracker.Tracker       // Manager for tracked Pods
+	Metrics        metrics.Config        // Metrics configuration interface
 }
 
 // nReconciler manages Virtual Kubelet instances
 type nReconciler struct {
 	nodeClient     api.NodeApiClient
 	workloadClient api.WorkloadApiClient
-	tracker        tracker.Tracker
 	k8sClient      kubernetes.Interface
+	tracker        tracker.Tracker
+	metrics        metrics.Config
 	instances      map[string]*instance
 }
 
@@ -96,8 +99,9 @@ func NewReconciler(ctx context.Context, config ReconcilerConfig) (Reconciler, er
 	nr := &nReconciler{
 		nodeClient:     config.NodeClient,
 		workloadClient: config.WorkloadClient,
-		tracker:        config.Tracker,
 		k8sClient:      k8sClient,
+		tracker:        config.Tracker,
+		metrics:        config.Metrics,
 		instances:      make(map[string]*instance),
 	}
 	r, err := reconciler.New(ctx, &logger, config.Interval, nr)
@@ -135,8 +139,16 @@ func (r *nReconciler) Reconcile(ctx context.Context) error {
 			//  way to get it back is to re-create the instance.
 			i.tracked = true
 		} else {
+			config := vk.InstanceConfig{
+				Client:         r.k8sClient,
+				Node:           node,
+				WorkloadClient: r.workloadClient,
+				Tracker:        r.tracker,
+				Metrics:        r.metrics,
+			}
+
 			// New node, create a new instance for it
-			r.instances[node.Meta.Name] = newInstance(vk.NewInstance(r.k8sClient, node, r.workloadClient, r.tracker))
+			r.instances[node.Meta.Name] = newInstance(vk.NewInstance(config))
 		}
 	}
 

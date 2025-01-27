@@ -18,6 +18,7 @@ import (
 	suconfig "github.com/supernetes/supernetes/config/pkg/config"
 	"github.com/supernetes/supernetes/controller/pkg/client"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
+	"github.com/supernetes/supernetes/controller/pkg/metrics"
 	"github.com/supernetes/supernetes/controller/pkg/node"
 	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
@@ -31,7 +32,7 @@ var (
 )
 
 func main() {
-	pflag.StringVarP(&logLevel, "log-level", "l", "trace", "Log level") // TODO: Persistently default to "info"
+	pflag.StringVarP(&logLevel, "log-level", "l", "info", "Log level") // TODO: Persistently default to "info"
 	pflag.StringVarP(&configPath, "config", "c", "", "path to controller configuration file (mandatory)")
 	pflag.Parse()
 
@@ -60,6 +61,16 @@ func main() {
 
 	log.FatalErr(vk.DisableKubeProxy(k8sConfig)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
 
+	metricsConfig, err := metrics.NewConfig()
+	if err != nil {
+		log.Warn().Err(err).Msg("metrics reporting disabled")
+	}
+
+	metricsServer := metrics.NewServer(10250)
+	metricsServer.Start()
+	metricsServer2 := metrics.NewServer(10251)
+	metricsServer2.Start()
+
 	workloadTracker := tracker.New()
 	ctx := context.Background()
 	nodeReconciler, err := node.NewReconciler(ctx, node.ReconcilerConfig{
@@ -68,6 +79,7 @@ func main() {
 		WorkloadClient: ep.Workload(),
 		Tracker:        workloadTracker,
 		K8sConfig:      k8sConfig,
+		Metrics:        metricsConfig,
 	})
 	log.FatalErr(err).Msg("failed to create node reconciler")
 	workloadReconciler, err := workload.NewReconciler(ctx, workload.ReconcilerConfig{
