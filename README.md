@@ -1,4 +1,4 @@
-# Supernetes
+[![Supernetes Logo 🐺](docs/media/logo/svg/supernetes-text.svg)](#)
 
 [![Go Report Card for `agent`](https://goreportcard.com/badge/github.com/supernetes/supernetes/agent)](https://goreportcard.com/report/github.com/supernetes/supernetes/agent)
 [![Go Report Card for `common`](https://goreportcard.com/badge/github.com/supernetes/supernetes/common)](https://goreportcard.com/report/github.com/supernetes/supernetes/common)
@@ -161,6 +161,7 @@ Alternatively, if you just want to deploy the Supernetes controller in your exis
 ## Authors
 
 - Dennis Marttinen ([@twelho](https://github.com/twelho))
+- Erika Marttinen ([@purkka](https://github.com/purkka))
 
 ## License
 
