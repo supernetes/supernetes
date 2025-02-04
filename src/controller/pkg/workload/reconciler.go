@@ -50,7 +50,7 @@ func NewReconciler(ctx context.Context, config ReconcilerConfig) (reconciler.Rec
 		return nil, err
 	}
 
-	k8sClient, err := client.NewK8sClient(config.K8sConfig)
+	k8sClient, err := client.NewKubeClient(config.K8sConfig)
 	if err != nil {
 		return nil, err
 	}

@@ -15,9 +15,11 @@ import (
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/controller/pkg/client"
+	"github.com/supernetes/supernetes/controller/pkg/environment"
 	"github.com/supernetes/supernetes/controller/pkg/reconciler"
 	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
+	vkauth "github.com/supernetes/supernetes/controller/pkg/vk/auth"
 	"google.golang.org/protobuf/types/known/emptypb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -59,20 +61,20 @@ func (i *instance) stop() {
 }
 
 type ReconcilerConfig struct {
-	Interval       time.Duration         // Reconciliation interval
-	NodeClient     api.NodeApiClient     // Client for accessing the node API
-	WorkloadClient api.WorkloadApiClient // Client for accessing the workload API
-	Tracker        tracker.Tracker       // Manager for tracked Pods
-	K8sConfig      *rest.Config          // Configuration for accessing Kubernetes
+	Interval       time.Duration           // Reconciliation interval
+	NodeClient     api.NodeApiClient       // Client for accessing the node API
+	WorkloadClient api.WorkloadApiClient   // Client for accessing the workload API
+	Tracker        tracker.Tracker         // Manager for tracked Pods
+	KubeConfig     *rest.Config            // Configuration for accessing Kubernetes
+	Environment    environment.Environment // Controller environment configuration
 }
 
 // nReconciler manages Virtual Kubelet instances
 type nReconciler struct {
-	nodeClient     api.NodeApiClient
-	workloadClient api.WorkloadApiClient
-	tracker        tracker.Tracker
-	k8sClient      kubernetes.Interface
-	instances      map[string]*instance
+	ReconcilerConfig
+	kubeClient kubernetes.Interface
+	instances  map[string]*instance
+	vkAuth     vkauth.Auth
 }
 
 // nReconcilerAdapter is a helper for adding additional methods to nReconciler
@@ -87,18 +89,22 @@ type Reconciler interface {
 }
 
 func NewReconciler(ctx context.Context, config ReconcilerConfig) (Reconciler, error) {
-	k8sClient, err := client.NewK8sClient(config.K8sConfig)
+	kubeClient, err := client.NewKubeClient(config.KubeConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	logger := log.Scoped().Str("type", "node").Logger()
+	vkAuth, err := vkauth.Start(ctx, kubeClient, &logger)
+	if err != nil {
+		return nil, err
+	}
+
 	nr := &nReconciler{
-		nodeClient:     config.NodeClient,
-		workloadClient: config.WorkloadClient,
-		tracker:        config.Tracker,
-		k8sClient:      k8sClient,
-		instances:      make(map[string]*instance),
+		ReconcilerConfig: config,
+		kubeClient:       kubeClient,
+		instances:        make(map[string]*instance),
+		vkAuth:           vkAuth,
 	}
 	r, err := reconciler.New(ctx, &logger, config.Interval, nr)
 	if err != nil {
@@ -109,7 +115,7 @@ func NewReconciler(ctx context.Context, config ReconcilerConfig) (Reconciler, er
 }
 
 func (r *nReconciler) Reconcile(ctx context.Context) error {
-	stream, err := r.nodeClient.GetNodes(ctx, &emptypb.Empty{})
+	stream, err := r.NodeClient.GetNodes(ctx, &emptypb.Empty{})
 	if err != nil {
 		return err
 	}
@@ -136,7 +142,14 @@ func (r *nReconciler) Reconcile(ctx context.Context) error {
 			i.tracked = true
 		} else {
 			// New node, create a new instance for it
-			r.instances[node.Meta.Name] = newInstance(vk.NewInstance(r.k8sClient, node, r.workloadClient, r.tracker))
+			r.instances[node.Meta.Name] = newInstance(vk.NewInstance(vk.InstanceConfig{
+				KubeClient:     r.kubeClient,
+				Node:           node,
+				WorkloadClient: r.WorkloadClient,
+				Tracker:        r.Tracker,
+				Environment:    r.Environment,
+				VkAuth:         r.vkAuth,
+			}))
 		}
 	}
 

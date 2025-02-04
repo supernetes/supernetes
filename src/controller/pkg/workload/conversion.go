@@ -74,7 +74,7 @@ func convertToPod(workload *api.Workload, node *string, index int) (*corev1.Pod,
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName(workload, index),
-			Namespace: "supernetes-workload", // Namespace for untracked workloads TODO: make this configurable
+			Namespace: supernetes.NamespaceWorkload, // Namespace for untracked workloads TODO: make this configurable
 			Labels:    labels,
 		},
 		Spec: corev1.PodSpec{
