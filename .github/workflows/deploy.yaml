@@ -1,14 +1,16 @@
 on:
-  pull_request:
-  push:
-    branches:
-      - master
+  workflow_run:
+    workflows:
+      - Approve
+    types:
+      - completed
 
 name: Deploy
 jobs:
   image:
     name: Image
     runs-on: ubuntu-22.04
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       digest: ${{ steps.digest.outputs.digest }}
     permissions:
@@ -25,7 +27,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.REGISTRY_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up runtime
         uses: ./.github/actions/runtime
       - name: Build and push image
@@ -36,6 +38,7 @@ jobs:
   config:
     name: Configuration
     runs-on: ubuntu-22.04
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: image
     env:
       BRANCH_NAME: ${{ (github.head_ref && format('pull-{0}', github.event.number)) || github.ref_name }}
