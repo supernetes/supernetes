@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func NewK8sConfig() (*rest.Config, error) {
+func NewKubeConfig() (*rest.Config, error) {
 	kubecfg, err := loadInClusterConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to load in-cluster configuration")
@@ -36,7 +36,7 @@ func NewK8sConfig() (*rest.Config, error) {
 	return kubecfg, nil
 }
 
-func NewK8sClient(config *rest.Config) (kubernetes.Interface, error) {
+func NewKubeClient(config *rest.Config) (kubernetes.Interface, error) {
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to instantiate Kubernetes client: %v")

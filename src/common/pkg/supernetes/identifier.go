@@ -6,6 +6,8 @@
 
 package supernetes
 
+const NamespaceWorkload = "supernetes-workload" // TODO: This should be configurable
+
 const ScopeNode = "supernetes-node"
 const TaintNoSchedule = ScopeNode + "/no-schedule"
 

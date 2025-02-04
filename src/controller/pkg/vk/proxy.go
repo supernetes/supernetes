@@ -19,8 +19,8 @@ import (
 )
 
 // DisableKubeProxy prevents kube-proxy pods from being deployed on Virtual Kubelet nodes
-func DisableKubeProxy(k8sConfig *rest.Config) error {
-	k8sClient, err := client.NewK8sClient(k8sConfig)
+func DisableKubeProxy(kubeConfig *rest.Config) error {
+	k8sClient, err := client.NewKubeClient(kubeConfig)
 	if err != nil {
 		return err
 	}

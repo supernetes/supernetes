@@ -30,7 +30,7 @@ import (
 type ReconcilerConfig struct {
 	Interval      time.Duration         // Reconciliation interval
 	Client        api.WorkloadApiClient // Client for accessing the workload API
-	K8sConfig     *rest.Config          // Configuration for accessing Kubernetes
+	KubeConfig    *rest.Config          // Configuration for accessing Kubernetes
 	StatusUpdater tracker.StatusUpdater // Callback to trigger manual Pod status updates
 	Tracker       tracker.Tracker       // Manager for tracked Pods
 }
@@ -45,12 +45,12 @@ type wlReconciler struct {
 }
 
 func NewReconciler(ctx context.Context, config ReconcilerConfig) (reconciler.Reconciler, error) {
-	mgr, err := ctrl.NewManager(config.K8sConfig, ctrl.Options{})
+	mgr, err := ctrl.NewManager(config.KubeConfig, ctrl.Options{})
 	if err != nil {
 		return nil, err
 	}
 
-	k8sClient, err := client.NewK8sClient(config.K8sConfig)
+	k8sClient, err := client.NewKubeClient(config.KubeConfig)
 	if err != nil {
 		return nil, err
 	}

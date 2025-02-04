@@ -16,8 +16,10 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	suconfig "github.com/supernetes/supernetes/config/pkg/config"
+	"github.com/supernetes/supernetes/controller/pkg/certificates"
 	"github.com/supernetes/supernetes/controller/pkg/client"
 	"github.com/supernetes/supernetes/controller/pkg/endpoint"
+	"github.com/supernetes/supernetes/controller/pkg/environment"
 	"github.com/supernetes/supernetes/controller/pkg/node"
 	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	"github.com/supernetes/supernetes/controller/pkg/vk"
@@ -55,25 +57,29 @@ func main() {
 	ep := endpoint.Serve(config)
 	defer ep.Close()
 
-	k8sConfig, err := client.NewK8sConfig()
+	kubeConfig, err := client.NewKubeConfig()
 	log.FatalErr(err).Msg("failed to create K8s client")
 
-	log.FatalErr(vk.DisableKubeProxy(k8sConfig)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
+	log.FatalErr(vk.DisableKubeProxy(kubeConfig)).Msg("disabling kube-proxy for Virtual Kubelet nodes failed")
+
+	ctx := context.Background() // TODO: This should be canceled on exit
+	controllerEnv := environment.Load()
+	log.FatalErr(certificates.Run(ctx, kubeConfig, controllerEnv)).Msg("starting CSR approver failed")
 
 	workloadTracker := tracker.New()
-	ctx := context.Background()
 	nodeReconciler, err := node.NewReconciler(ctx, node.ReconcilerConfig{
 		Interval:       time.Minute,
 		NodeClient:     ep.Node(),
 		WorkloadClient: ep.Workload(),
 		Tracker:        workloadTracker,
-		K8sConfig:      k8sConfig,
+		KubeConfig:     kubeConfig,
+		Environment:    controllerEnv,
 	})
 	log.FatalErr(err).Msg("failed to create node reconciler")
 	workloadReconciler, err := workload.NewReconciler(ctx, workload.ReconcilerConfig{
 		Interval:      time.Minute,
 		Client:        ep.Workload(),
-		K8sConfig:     k8sConfig,
+		KubeConfig:    kubeConfig,
 		StatusUpdater: nodeReconciler,
 		Tracker:       workloadTracker,
 	})
@@ -91,6 +97,8 @@ func main() {
 		},
 	})
 
+	// TODO: Instead of this, the context given to the reconcilers should just be canceled.
+	//  Additionally, this needs to wait for everything to stop gracefully before returning.
 	defer nodeReconciler.Stop()
 	defer workloadReconciler.Stop()
 

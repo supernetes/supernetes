@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-package agent
+package cache
 
 import (
 	"os"
@@ -15,7 +15,7 @@ import (
 
 var cacheDir string
 
-func CacheDir() string {
+func Dir() string {
 	if cacheDir == "" {
 		var err error
 		cacheDir, err = os.UserCacheDir()
@@ -26,5 +26,5 @@ func CacheDir() string {
 }
 
 func IoDir() string {
-	return path.Join(CacheDir(), "io")
+	return path.Join(Dir(), "io")
 }

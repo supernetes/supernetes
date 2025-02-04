@@ -8,16 +8,18 @@ package sbatch
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"maps"
+	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"al.essio.dev/pkg/shellescape"
-	"github.com/supernetes/supernetes/agent/pkg/agent"
+	"github.com/pkg/errors"
+	"github.com/supernetes/supernetes/agent/pkg/cache"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/config/pkg/config"
@@ -90,8 +92,7 @@ func (r *runtime) composeScript(workload *api.Workload) (string, error) {
 		"account":   r.config.Account,
 		"partition": r.config.Partition,
 		// https://slurm.schedmd.com/sbatch.html#SECTION_FILENAME-PATTERN
-		"output":   path.Join(agent.IoDir(), "%j.stout"),
-		"error":    path.Join(agent.IoDir(), "%j.stderr"),
+		"output":   path.Join(cache.IoDir(), "%j.out"),
 		"nodelist": strings.Join(workload.Spec.NodeNames, ","),
 	}
 
@@ -112,10 +113,13 @@ func (r *runtime) composeScript(workload *api.Workload) (string, error) {
 	// Incorporate the extra options for sbatch
 	maps.Copy(sbatchOpts, extraOpts)
 
-	script := "#!/bin/sh\n"
+	script := "#!/bin/bash\n"
 	for k, v := range sbatchOpts {
 		script += fmt.Sprintf("#SBATCH --%s %q\n", k, v)
 	}
+
+	// Safety options for the actual command
+	script += "set -eo pipefail\n"
 
 	command := "run"
 	if len(workload.Spec.Command) > 0 {
@@ -127,6 +131,23 @@ func (r *runtime) composeScript(workload *api.Workload) (string, error) {
 		append(workload.Spec.Command, workload.Spec.Args...)...,
 	))
 
+	binPath, err := agentPath()
+	if err != nil {
+		return "", errors.Wrap(err, "resolving agent binary path failed")
+	}
+
+	// Append the timestamping provided by the agent
+	script += fmt.Sprintf(" |& %q timestamp", binPath)
+
 	log.Debug().Str("script", script).Msg("composed sbatch script")
 	return script, nil
+}
+
+func agentPath() (string, error) {
+	binPath, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.EvalSymlinks(binPath)
 }

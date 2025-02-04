@@ -42,7 +42,7 @@ Finally, the controller also observes any Pods that users deploy directly to its
 - [x] Kustomization for continuous deployment
 - [ ] Per-workload Slurm partition selection (https://github.com/supernetes/supernetes/issues/32)
 - [ ] Metrics support for Virtual Kubelet nodes (https://github.com/supernetes/supernetes/issues/33)
-- [ ] Log retrieval/streaming support for tracked workloads (https://github.com/supernetes/supernetes/issues/34)
+- [x] Log retrieval/streaming support for tracked workloads
 - [ ] Complete node state reconciliation (https://github.com/supernetes/supernetes/issues/35)
 
 ## Building
@@ -162,6 +162,7 @@ Alternatively, if you just want to deploy the Supernetes controller in your exis
 
 - Dennis Marttinen ([@twelho](https://github.com/twelho))
 - Erika Marttinen ([@purkka](https://github.com/purkka))
+- Lucas Käldström ([@luxas](https://github.com/luxas))
 
 ## License
 
