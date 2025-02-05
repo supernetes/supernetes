@@ -1,0 +1,22 @@
+# This is a helper for automating the approval of the deployment jobs if the actor (triggering user) is trusted. This
+# should avoid the need for constantly clicking around manual approvals. Supernetes maintainers should first add
+# themselves to the required reviewers of the "deploy" environment, then to the `actor_allow_list` below.
+
+on:
+  deployment:
+  workflow_dispatch:
+
+name: Approve
+jobs:
+  approve:
+    name: Deployments
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Auto-approve deployments
+        uses: activescott/automate-environment-deployment-approval@main
+        with:
+          github_token: ${{ secrets.REGISTRY_TOKEN }}
+          environment_allow_list: |
+            deploy
+          actor_allow_list: |
+            twelho
