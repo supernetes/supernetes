@@ -13,8 +13,9 @@ jobs:
     name: Approve
     uses: ./.github/workflows/approve.yaml
     with:
-      token: ${{ secrets.GITHUB_TOKEN }}
       run-id: ${{ github.run_id }}
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
   controller:
     name: Controller
     runs-on: ubuntu-22.04
