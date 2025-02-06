@@ -5,14 +5,14 @@
 on:
   workflow_call:
     inputs:
-      token:
-        description: Personal Access Token (PAT) with 'repo' scope
-        required: true
-        type: string
       run-id:
         description: Workflow run ID to approve
         required: true
         type: string
+    secrets:
+      token:
+        description: Personal Access Token (PAT) with 'repo' scope
+        required: true
 
 name: Approve
 jobs:
@@ -28,4 +28,4 @@ jobs:
           actor_allow_list: |
             twelho
           run_id_allow_list: ${{ inputs.run-id }}
-          github_token: ${{ inputs.token }}
+          github_token: ${{ secrets.token }}
