@@ -19,6 +19,11 @@ spec:
           args:
             - --config
             - /config/config.yaml
+          env:
+            - name: SUPERNETES_CONTROLLER_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
