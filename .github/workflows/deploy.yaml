@@ -10,9 +10,10 @@ on:
 name: Deploy
 jobs:
   approve:
-    name: Auto-approval
+    name: Approve
     uses: ./.github/workflows/approve.yaml
     with:
+      token: ${{ secrets.GITHUB_TOKEN }}
       run-id: ${{ github.run_id }}
   controller:
     name: Controller
@@ -32,7 +33,7 @@ jobs:
         id: image
         uses: ./supernetes/.github/actions/deploy-image
         with:
-          ghcr-password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Check out deployment repository
         uses: actions/checkout@v4
         with:

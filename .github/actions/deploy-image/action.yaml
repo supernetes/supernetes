@@ -1,7 +1,7 @@
 name: Deploy image
 description: Builds and pushes the controller container image
 inputs:
-  ghcr-password:
+  password:
     description: Password for GHCR login
     required: true
 outputs:
@@ -16,7 +16,7 @@ runs:
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
-        password: ${{ inputs.ghcr-password }}
+        password: ${{ inputs.password }}
     - name: Set up runtime
       uses: ./supernetes/.github/actions/runtime
     - name: Build and push image
