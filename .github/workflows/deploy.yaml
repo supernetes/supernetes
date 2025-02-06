@@ -1,8 +1,7 @@
 on:
-  # SECURITY: This can permit PRs from forks to run potentially malicious pushes to the registry.
-  # This is safe only if these jobs are configured to always require maintainer review and manual
-  # approval before running. The manual approval requirement is established through the
-  # "approved" environment.
+  # SECURITY: This can permit PRs from forks to run potentially malicious pushes to the registry. This is safe only if
+  # these jobs are configured to always require maintainer review and manual approval before running. The manual
+  # approval requirement is established through the "deploy" environment.
   pull_request_target:
   push:
     branches:
@@ -10,12 +9,10 @@ on:
 
 name: Deploy
 jobs:
-  image:
-    name: Image
+  controller:
+    name: Controller
     runs-on: ubuntu-22.04
-    environment: approved
-    outputs:
-      digest: ${{ steps.digest.outputs.digest }}
+    environment: deploy
     permissions:
       packages: write
     steps:
@@ -25,55 +22,20 @@ jobs:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
           filter: tree:0
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up runtime
-        uses: ./.github/actions/runtime
-      - name: Build and push image
-        run: make image-push
-      - name: Retrieve image digest
-        run: echo "digest=$(make image-digest)" >> "$GITHUB_OUTPUT"
-        id: digest
-  config:
-    name: Configuration
-    runs-on: ubuntu-22.04
-    environment: approved
-    needs: image
-    env:
-      BRANCH_NAME: ${{ (github.head_ref && format('pull-{0}', github.event.number)) || github.ref_name }}
-    steps:
-      - name: Check out sources
-        uses: actions/checkout@v4
-        with:
           path: supernetes
+      - name: Deploy image
+        id: image
+        uses: ./supernetes/.github/actions/deploy-image
+        with:
+          ghcr-password: ${{ secrets.GITHUB_TOKEN }}
       - name: Check out deployment repository
         uses: actions/checkout@v4
         with:
           repository: supernetes/deploy
-          path: deploy
           fetch-depth: 0
+          path: deploy
           ssh-key: ${{ secrets.DEPLOY_KEY }}
-      - name: Prepare deployment repository
-        run: >
-          cd deploy && git checkout "$BRANCH_NAME" ||
-          { git checkout -b "$BRANCH_NAME" && git reset --hard "$(git rev-list --max-parents=0 HEAD)"; }
-      - name: Update deployment repository
-        run: |
-          rsync -a supernetes/deploy/ deploy/ && cd deploy
-          kustomize edit set image "${{ needs.image.outputs.digest }}"
-          envsubst < ../supernetes/deploy/README.md > README.md
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --global push.autoSetupRemote true
-      - name: Push a new commit
-        run: |
-          cd deploy
-          git add -A
-          git commit -m "release: update controller image to ${{ needs.image.outputs.digest }}"
-          git push -f
+      - name: Deploy configuration
+        uses: ./supernetes/.github/actions/deploy-configuration
+        with:
+          digest: ${{ steps.image.outputs.digest }}

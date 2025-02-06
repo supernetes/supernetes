@@ -1,0 +1,37 @@
+name: Deploy configuration
+description: Update the deployment repository with a new configuration
+inputs:
+  digest:
+    description: Digest of built image
+    required: true
+  branch:
+    description: Deploy repository branch to update
+    required: true
+    default: ${{ (github.head_ref && format('pull-{0}', github.event.number)) || github.ref_name }}
+runs:
+  using: composite
+  steps:
+    - name: Prepare deployment repository
+      run: >
+        cd deploy && git checkout "${{ inputs.branch }}" ||
+        { git checkout -b "${{ inputs.branch }}" && git reset --hard "$(git rev-list --max-parents=0 HEAD)"; }
+      shell: sh
+    - name: Update deployment repository
+      run: |
+        rsync -a supernetes/deploy/ deploy/ && cd deploy
+        kustomize edit set image "${{ inputs.digest }}"
+        envsubst < ../supernetes/deploy/README.md > README.md
+      shell: sh
+    - name: Configure Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --global push.autoSetupRemote true
+      shell: sh
+    - name: Push a new commit
+      run: |
+        cd deploy
+        git add -A
+        git commit -m "release: update controller image to ${{ inputs.digest }}"
+        git push -f
+      shell: sh
