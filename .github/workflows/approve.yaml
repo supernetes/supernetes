@@ -3,11 +3,12 @@
 # themselves to the required reviewers of the "deploy" environment, then to the `actor_allow_list` below.
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       run-id:
         description: Workflow run ID to approve
         required: true
+        type: number
 
 name: Approve
 jobs:
