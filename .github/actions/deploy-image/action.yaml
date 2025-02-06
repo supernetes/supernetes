@@ -1,5 +1,5 @@
 name: Deploy image
-description: Builds and pushes the controller container image
+description: Build and push the controller container image
 inputs:
   password:
     description: Password for GHCR login
