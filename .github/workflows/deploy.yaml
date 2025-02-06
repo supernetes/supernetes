@@ -15,7 +15,7 @@ jobs:
     with:
       run-id: ${{ github.run_id }}
     secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
+      token: ${{ secrets.AUTO_APPROVE_TOKEN }}
   controller:
     name: Controller
     runs-on: ubuntu-22.04
