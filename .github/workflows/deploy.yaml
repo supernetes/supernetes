@@ -9,6 +9,11 @@ on:
 
 name: Deploy
 jobs:
+  approve:
+    name: Auto-approval
+    uses: ./.github/workflows/approve.yaml
+    with:
+      run-id: ${{ github.run_id }}
   controller:
     name: Controller
     runs-on: ubuntu-22.04
