@@ -8,7 +8,7 @@ on:
       run-id:
         description: Workflow run ID to approve
         required: true
-        type: number
+        type: string
 
 name: Approve
 jobs:
