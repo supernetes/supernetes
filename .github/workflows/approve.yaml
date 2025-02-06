@@ -3,8 +3,11 @@
 # themselves to the required reviewers of the "deploy" environment, then to the `actor_allow_list` below.
 
 on:
-  deployment:
   workflow_dispatch:
+    inputs:
+      run-id:
+        description: Workflow run ID to approve
+        required: true
 
 name: Approve
 jobs:
@@ -15,8 +18,9 @@ jobs:
       - name: Auto-approve deployments
         uses: activescott/automate-environment-deployment-approval@main
         with:
-          github_token: ${{ secrets.REGISTRY_TOKEN }}
           environment_allow_list: |
             deploy
           actor_allow_list: |
             twelho
+          run_id_allow_list: ${{ inputs.run-id }}
+          github_token: ${{ secrets.REGISTRY_TOKEN }}
