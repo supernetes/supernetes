@@ -26,6 +26,7 @@ jobs:
       - name: Check out sources
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
           filter: tree:0
