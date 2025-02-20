@@ -19,21 +19,38 @@ spec:
           args:
             - --config
             - /config/config.yaml
+          env:
+          - name: SUPERNETES_CONTROLLER_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: SUPERNETES_CONTROLLER_SERVICEACCOUNT
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.serviceAccountName
+          - name: SUPERNETES_CONTROLLER_ADDRESS
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
-            readOnlyRootFilesystem: true
             runAsNonRoot: true
           volumeMounts:
             - name: config
               mountPath: /config
               readOnly: true
+            - name: ephemeral
+              mountPath: /ephemeral
       volumes:
         - name: config
           secret:
             # The configuration secret must be provided by
             # the user, use the `config` tool to generate it
             secretName: supernetes-config
+        - name: ephemeral
+          # noinspection KubernetesUnknownValues
+          emptyDir:
       serviceAccountName: supernetes
