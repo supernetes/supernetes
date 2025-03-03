@@ -17,14 +17,18 @@ import (
 	suerr "github.com/supernetes/supernetes/common/pkg/error"
 	sulog "github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/common/pkg/supernetes"
+	"github.com/supernetes/supernetes/controller/pkg/environment"
 	"github.com/supernetes/supernetes/controller/pkg/provider"
 	"github.com/supernetes/supernetes/controller/pkg/tracker"
+	vkauth "github.com/supernetes/supernetes/controller/pkg/vk/auth"
 	vklog "github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
+	vkapi "github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -41,33 +45,44 @@ type Instance interface {
 }
 
 type instance struct {
-	cfg            *nodeutil.NodeConfig
-	podProvider    provider.PodProvider
-	workloadClient api.WorkloadApiClient
-	tracker        tracker.Tracker
+	cfg                 *nodeutil.NodeConfig
+	podProvider         provider.PodProvider
+	workloadClient      api.WorkloadApiClient
+	tracker             tracker.Tracker
+	vkAuth              vkauth.Auth
+	enableKubeletServer bool
+}
+
+type InstanceConfig struct {
+	KubeClient     kubernetes.Interface
+	Node           *api.Node
+	WorkloadClient api.WorkloadApiClient
+	Tracker        tracker.Tracker
+	Environment    environment.Environment
+	VkAuth         vkauth.Auth
 }
 
 // TODO: This doesn't re-create the node if it's deleted from the API server
 //  However, it should now support invoking Instance.Run multiple times to solve that
 
 // NewInstance creates a new Instance for the given node
-func NewInstance(client kubernetes.Interface, node *api.Node, workloadClient api.WorkloadApiClient, tracker tracker.Tracker) Instance {
+func NewInstance(instanceCfg InstanceConfig) Instance {
 	// TODO: This needs to be properly populated based on `node`
 	// TODO: That includes labeling/tainting the node with its partitions, so that the Kubernetes scheduler doesn't
 	//  attempt to schedule workloads onto nodes that can't receive them. This also requires, that the controller is
 	//  either aware of the partition used by the agent, or that the agent can tell it which partitions it can schedule
 	//  to. Also keep in mind the future support of labeling/annotating the partition that should be used in the pod.
 	cfg := nodeutil.NodeConfig{
-		Client:               client,
+		Client:               instanceCfg.KubeClient,
 		NumWorkers:           1,           // TODO: Scaling
 		InformerResyncPeriod: time.Minute, // TODO: Configurability
 		NodeSpec: corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: node.Meta.Name,
+				Name: instanceCfg.Node.Meta.Name,
 				Labels: map[string]string{
 					"type":                   supernetes.NodeTypeVirtualKubelet,
 					"kubernetes.io/role":     supernetes.NodeRoleSupernetes,
-					"kubernetes.io/hostname": node.Meta.Name,
+					"kubernetes.io/hostname": instanceCfg.Node.Meta.Name,
 				},
 			},
 			Spec: corev1.NodeSpec{
@@ -91,14 +106,32 @@ func NewInstance(client kubernetes.Interface, node *api.Node, workloadClient api
 					"memory": resource.MustParse("1Gi"),
 					"pods":   resource.MustParse("1"),
 				},
+				Addresses: []corev1.NodeAddress{
+					{
+						Type:    corev1.NodeHostName,
+						Address: instanceCfg.Node.Meta.Name,
+					},
+				},
 			},
 		},
 	}
 
+	enableKubeletServer := false
+	if addr := instanceCfg.Environment.ControllerAddress(); addr != nil {
+		enableKubeletServer = true
+		status := &cfg.NodeSpec.Status
+		status.Addresses = append(status.Addresses, corev1.NodeAddress{
+			Type:    corev1.NodeInternalIP,
+			Address: addr.String(),
+		})
+	}
+
 	return &instance{
-		cfg:            &cfg,
-		workloadClient: workloadClient,
-		tracker:        tracker,
+		cfg:                 &cfg,
+		workloadClient:      instanceCfg.WorkloadClient,
+		tracker:             instanceCfg.Tracker,
+		vkAuth:              instanceCfg.VkAuth,
+		enableKubeletServer: enableKubeletServer,
 	}
 }
 
@@ -208,6 +241,43 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 		return podController.Err() // Pod controller failed to become ready, return its error
 	}
 
+	if i.enableKubeletServer {
+		// Set up Kubelet server
+		handler := i.podHandlerConfig(podInformerFactory)
+		kubeletServer := NewKubeletServer(cfg.Client, handler, i.vkAuth, nodeName, func() []corev1.NodeAddress {
+			return cfg.NodeSpec.Status.Addresses
+		})
+
+		// Start Kubelet server
+		go func() {
+			defer cancel()
+			log.Debug().Msg("starting Kubelet server")
+			if err := kubeletServer.Run(ctx, &log); err != nil {
+				if !suerr.IsContextCanceled(err) {
+					log.Err(err).Msg("running Kubelet server failed")
+				}
+
+				return
+			}
+
+			log.Debug().Msg("stopped Kubelet server")
+		}()
+
+		// Wait for the Kubelet server to become ready
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-kubeletServer.Ready():
+		}
+
+		// Update the node daemon endpoint with the port from the Kubelet server
+		cfg.NodeSpec.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
+			KubeletEndpoint: corev1.DaemonEndpoint{
+				Port: kubeletServer.Port(),
+			},
+		}
+	}
+
 	// Start node controller
 	go func() {
 		defer cancel()
@@ -271,4 +341,21 @@ func setReady(n *corev1.Node) *corev1.Node {
 	}
 
 	return n
+}
+
+func (i *instance) podHandlerConfig(podInformerFactory informers.SharedInformerFactory) vkapi.PodHandlerConfig {
+	return vkapi.PodHandlerConfig{
+		RunInContainer:    i.podProvider.RunInContainer,
+		AttachToContainer: i.podProvider.AttachToContainer,
+		PortForward:       i.podProvider.PortForward,
+		GetContainerLogs:  i.podProvider.GetContainerLogs,
+		GetPods:           i.podProvider.GetPods,
+		GetPodsFromKubernetes: func(context.Context) ([]*corev1.Pod, error) {
+			return podInformerFactory.Core().V1().Pods().Lister().List(labels.Everything())
+		},
+		GetStatsSummary:       i.podProvider.GetStatsSummary,
+		GetMetricsResource:    i.podProvider.GetMetricsResource,
+		StreamIdleTimeout:     i.cfg.StreamIdleTimeout,     // Defaults to 30s: https://github.com/virtual-kubelet/virtual-kubelet/blob/5c534ffcd6074044b00a5151da84ac2cc8ce3f12/node/api/portforward.go#L73
+		StreamCreationTimeout: i.cfg.StreamCreationTimeout, // Defaults to 30s: https://github.com/virtual-kubelet/virtual-kubelet/blob/5c534ffcd6074044b00a5151da84ac2cc8ce3f12/node/api/portforward.go#L76
+	}
 }

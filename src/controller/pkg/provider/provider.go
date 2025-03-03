@@ -16,6 +16,7 @@ import (
 	"github.com/supernetes/supernetes/controller/pkg/tracker"
 	"github.com/virtual-kubelet/virtual-kubelet/errdefs"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
+	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -26,7 +27,7 @@ import (
 //  remove the associated Pod.
 
 type PodProvider interface {
-	node.PodLifecycleHandler
+	nodeutil.Provider
 	node.PodNotifier // Required for async provider compliance
 	tracker.StatusUpdater
 }

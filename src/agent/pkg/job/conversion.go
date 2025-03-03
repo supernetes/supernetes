@@ -7,14 +7,9 @@
 package job
 
 import (
-	"fmt"
-	"os"
-	"path"
 	"strconv"
 
-	"github.com/supernetes/supernetes/agent/pkg/agent"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/common/pkg/log"
 )
 
 func (j *Job) ConvertToApi(nodeFilter func(string) bool) *api.Workload {
@@ -43,28 +38,12 @@ func (j *Job) ConvertToApi(nodeFilter func(string) bool) *api.Workload {
 		//},
 		Status: &api.WorkloadStatus{
 			Phase:     parseJobState(j.JobState),
-			StdOut:    readIo(j.JobID, "stout"),
-			StdErr:    readIo(j.JobID, "stderr"),
 			StartTime: int64(j.StartTime.Number),
 			Nodes:     nodes,
 		},
 	}
 
 	return workload
-}
-
-func readIo(jobId int, kind string) string {
-	data, err := os.ReadFile(path.Join(agent.IoDir(), fmt.Sprintf("%d.%s", jobId, kind)))
-	if os.IsNotExist(err) {
-		return ""
-	}
-
-	if err != nil {
-		log.Err(err).Int("id", jobId).Str("kind", kind).Msg("failed to read I/O file for job")
-		return ""
-	}
-
-	return string(data)
 }
 
 func parseJobState(jobState JobState) api.WorkloadPhase {

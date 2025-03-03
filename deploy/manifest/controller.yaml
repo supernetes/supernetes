@@ -19,6 +19,19 @@ spec:
           args:
             - --config
             - /config/config.yaml
+          env:
+          - name: SUPERNETES_CONTROLLER_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: SUPERNETES_CONTROLLER_SERVICEACCOUNT
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.serviceAccountName
+          - name: SUPERNETES_CONTROLLER_ADDRESS
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -30,10 +43,14 @@ spec:
             - name: config
               mountPath: /config
               readOnly: true
+            - name: data
+              mountPath: /data
       volumes:
         - name: config
           secret:
             # The configuration secret must be provided by
             # the user, use the `config` tool to generate it
             secretName: supernetes-config
+        - name: data
+          emptyDir: {}
       serviceAccountName: supernetes

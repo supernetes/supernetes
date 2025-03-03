@@ -9,6 +9,7 @@ syntax = "proto3";
 package supernetes;
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 import "src/api/v1alpha1/node.proto";
 
 option go_package = "module github.com/supernetes/supernetes/api/v1alpha1";
@@ -21,6 +22,7 @@ service WorkloadApi {
   rpc Get (WorkloadMeta) returns (Workload);
   rpc GetStatus (WorkloadMeta) returns (WorkloadStatus);
   rpc List (google.protobuf.Empty) returns (stream Workload);
+  rpc Logs (stream WorkloadLogRequest) returns (stream WorkloadLogChunk);
 }
 
 // metav1.ObjectMeta-style metadata description for workloads
@@ -56,10 +58,8 @@ enum WorkloadPhase {
 // Status description for workloads, similar to .status in Kubernetes resource definitions
 message WorkloadStatus {
   WorkloadPhase phase = 1;
-  string std_out = 2; // TODO: Delta updates for verbose workloads?
-  string std_err = 3;
-  int64 start_time = 4;
-  repeated NodeMeta nodes = 5;
+  int64 start_time = 2; // TODO: Change to google.protobuf.Timestamp
+  repeated NodeMeta nodes = 3;
 }
 
 // Workload describes a containerized HPC-deployable resource
@@ -67,4 +67,17 @@ message Workload {
   WorkloadMeta meta = 1;
   WorkloadSpec spec = 2;
   WorkloadStatus status = 3;
+}
+
+// WorkloadLogRequest is to be sent once in a Logs request to initiate log streaming for a workload
+message WorkloadLogRequest {
+  WorkloadMeta meta = 1; // Workload to stream logs for
+  bool follow = 2; // Read current log history only or keep waiting for more lines as well
+  int32 tail = 3; // When reading log history, consider only `tail` last lines
+}
+
+// WorkloadLogChunk represents a chunk of log data from a workload
+message WorkloadLogChunk {
+  google.protobuf.Timestamp timestamp = 1; // Timestamp of log line
+  bytes line = 2; // Combined stdout and stderr
 }
