@@ -6,6 +6,12 @@
 [![Go Report Card for `controller`](https://goreportcard.com/badge/github.com/supernetes/supernetes/controller)](https://goreportcard.com/report/github.com/supernetes/supernetes/controller)
 [![Latest Release](https://img.shields.io/github/v/release/supernetes/supernetes?sort=semver)](https://github.com/supernetes/supernetes/releases)
 
+> [!NOTE]
+>
+> 📣 **Supernetes will be [on stage](https://kccnceu2025.sched.com/event/1tx7r/thousands-of-virtual-kubelets-1-to-1-mapping-a-supercomputer-to-kubernetes-with-supernetes-dennis-marttinen-aalto-university) at KubeCon + CloudNativeCon EU 2025!**
+>
+> Join [@twelho](https://github.com/twelho) for an exploration into the HPC-to-cloud bridge landscape and hear the Supernetes origin story, with architectural deep dives and a live demo! Check out [Thousands of Virtual Kubelets: 1-to-1 Mapping a Supercomputer To Kubernetes With Supernetes](https://kccnceu2025.sched.com/event/1tx7r/thousands-of-virtual-kubelets-1-to-1-mapping-a-supercomputer-to-kubernetes-with-supernetes-dennis-marttinen-aalto-university)!
+
 **Supernetes** (*Supercomputer* + *Kubernetes*) is a High Performance Computing (HPC) bridge for your Kubernetes environment: Expose your HPC nodes and jobs to Kubernetes-native tooling and schedulers, abstracting away the HPC-specifics. The goal is to provide a (near) complete abstraction: simulating what it would be like if your legacy HPC system ran Kubernetes natively.
 
 ## Architecture
