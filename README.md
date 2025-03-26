@@ -43,7 +43,7 @@ Finally, the controller also observes any Pods that users deploy directly to its
   - no ports to be opened in the firewall (not even SSH).
   - If you can run `sbatch` and `scontrol`, you can run Supernetes!
 - [x] mTLS 1.3 certificate-based authentication and end-to-end encryption with ED25519 keys between the controller and agent
-- [x] Scalable: reconciling over 1000 HPC with jobs has been tested
+- [x] Scalable: reconciling over 1000 HPC nodes with jobs has been tested
 - [x] Container image packaging with GHCR
 - [x] Kustomization for continuous deployment
 - [ ] Per-workload Slurm partition selection (https://github.com/supernetes/supernetes/issues/32)
