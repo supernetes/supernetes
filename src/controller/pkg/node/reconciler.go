@@ -137,8 +137,8 @@ func (r *nReconciler) Reconcile(ctx context.Context) error {
 
 		if i, ok := r.instances[node.Meta.Name]; ok {
 			// Existing node, still tracked
-			// TODO: Need to check here whether the node actually still exists as a resource. If not, the most atomic
-			//  way to get it back is to re-create the instance.
+			// TODO: Need to check here whether the node actually still exists as a resource.
+			//  If not, the most atomic way to get it back is to re-create the instance.
 			i.tracked = true
 		} else {
 			// New node, create a new instance for it
@@ -151,6 +151,9 @@ func (r *nReconciler) Reconcile(ctx context.Context) error {
 				VkAuth:         r.vkAuth,
 			}))
 		}
+
+		// Update the status of the node
+		r.instances[node.Meta.Name].instance.UpdateNodeStatus(node.Status)
 	}
 
 	// Start/stop tracked/untracked instances

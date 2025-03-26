@@ -47,7 +47,7 @@ Finally, the controller also observes any Pods that users deploy directly to its
 - [x] Container image packaging with GHCR
 - [x] Kustomization for continuous deployment
 - [ ] Per-workload Slurm partition selection (https://github.com/supernetes/supernetes/issues/32)
-- [ ] Metrics support for Virtual Kubelet nodes (https://github.com/supernetes/supernetes/issues/33)
+- [x] Metrics support for Virtual Kubelet nodes
 - [x] Log retrieval/streaming support for tracked workloads
 - [ ] Complete node state reconciliation (https://github.com/supernetes/supernetes/issues/35)
 

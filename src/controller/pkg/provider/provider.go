@@ -34,24 +34,26 @@ type PodProvider interface {
 
 // podProvider implements the Virtual Kubelet pod lifecycle handler for Supernetes workloads
 type podProvider struct {
-	log            *zerolog.Logger
-	pods           map[podKey]*corev1.Pod
-	pendingStatus  map[podKey]*corev1.PodStatus
-	nodeName       string
-	workloadClient api.WorkloadApiClient
-	tracker        tracker.Tracker
-	notifier       func(*corev1.Pod)
-	mutex          sync.Mutex
+	log             *zerolog.Logger
+	pods            map[podKey]*corev1.Pod
+	pendingStatus   map[podKey]*corev1.PodStatus
+	nodeName        string
+	workloadClient  api.WorkloadApiClient
+	tracker         tracker.Tracker
+	metricsProvider MetricsProvider
+	notifier        func(*corev1.Pod)
+	mutex           sync.Mutex
 }
 
-func NewPodProvider(log *zerolog.Logger, nodeName string, workloadClient api.WorkloadApiClient, tracker tracker.Tracker) PodProvider {
+func NewPodProvider(log *zerolog.Logger, nodeName string, workloadClient api.WorkloadApiClient, tracker tracker.Tracker, metricsProvider MetricsProvider) PodProvider {
 	return &podProvider{
-		log:            log,
-		pods:           make(map[podKey]*corev1.Pod),
-		pendingStatus:  make(map[podKey]*corev1.PodStatus),
-		nodeName:       nodeName,
-		workloadClient: workloadClient,
-		tracker:        tracker,
+		log:             log,
+		pods:            make(map[podKey]*corev1.Pod),
+		pendingStatus:   make(map[podKey]*corev1.PodStatus),
+		nodeName:        nodeName,
+		workloadClient:  workloadClient,
+		tracker:         tracker,
+		metricsProvider: metricsProvider,
 	}
 }
 

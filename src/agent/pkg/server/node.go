@@ -66,10 +66,29 @@ func (s *nodeServer) GetNodes(_ *emptypb.Empty, a grpc.ServerStreamingServer[api
 
 // TODO: This needs to populate all available fields
 func toNode(node *node.Node) *api.Node {
+	realMem := uint64(node.RealMemory) * 1024 * 1024        // Slurm says this is in "MB", I'm assuming MiB
+	freeMem := uint64(node.FreeMem.ToFloat() * 1024 * 1024) // Slurm says this is in "MB", I'm assuming MiB
+	usedMem := realMem - freeMem
+	if freeMem > realMem {
+		// For some reason, on some nodes the free memory can be larger than real memory, fall back to allocated memory
+		// in this case. Slurm gives us no details on what these values actually represent or how they're computed.
+		usedMem = uint64(node.AllocMemory) * 1024 * 1024
+	}
+
 	return &api.Node{
 		Meta: &api.NodeMeta{
 			Name: node.Name,
 		},
-		Spec: &api.NodeSpec{},
+		Spec: &api.NodeSpec{
+			CpuCount: uint32(node.Cpus),
+			MemBytes: realMem,
+		},
+		Status: &api.NodeStatus{
+			// Seems to be fixed point, at least on LUMI
+			CpuLoad: node.CPULoad.ToFloat() / 100,
+			// This is not accurate, since Slurm has no way to retrieve the
+			// precise memory use on the node, let alone the working set.
+			WsBytes: usedMem,
+		},
 	}
 }
