@@ -243,18 +243,17 @@ func (p *podProvider) GetStatsSummary(context.Context) (*statsv1alpha1.Summary, 
 // GetMetricsResource gets the metrics for the node, including running pods
 func (p *podProvider) GetMetricsResource(context.Context) ([]*dto.MetricFamily, error) {
 	// TODO: This is verbose, disable logging for now
-	//sulog.Trace().Msg("GetMetricsResource stub")
+	//sulog.Trace().Msg("GetMetricsResource called")
+
+	// For Metrics Server, the metrics this needs to report are here:
+	//  https://github.com/kubernetes-sigs/metrics-server/blob/029dfa4e03b0f01b3ec4000ee25030e40511823f/pkg/scraper/client/resource/decode.go#L33-L34
+	//	- node_cpu_usage_seconds_total, which is an integral of cpu-seconds
+	//	- node_memory_working_set_bytes, which is the total working set memory usage on the node
+	// Helpful command for debugging:
+	//  kubectl get --raw /api/v1/nodes/<node>/proxy/metrics/resource | grep node_cpu_usage_seconds_total
 	return []*dto.MetricFamily{
-		{
-			Name: ptr.To("cpu_usage_total"),
-			Help: ptr.To("Total CPU usage"),
-			Type: dto.MetricType_COUNTER.Enum(),
-			Metric: []*dto.Metric{
-				{
-					Counter: &dto.Counter{Value: ptr.To(float64(1234))},
-				},
-			},
-		},
+		p.metricsProvider.CpuMetric(),
+		p.metricsProvider.MemMetric(),
 	}, nil
 }
 

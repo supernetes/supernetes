@@ -24,11 +24,18 @@ message NodeMeta {
 
 // Data description for workloads, similar to .spec in Kubernetes resource definitions
 message NodeSpec {
-  // TODO: CPUs etc.
+  uint32 cpu_count = 1;
+  uint64 mem_bytes = 2;
+}
+
+message NodeStatus {
+  float cpu_load = 1; // Linux load average
+  uint64 ws_bytes = 2; // Memory usage in bytes (working set)
 }
 
 // Node describes the properties of a single node in the HPC environment
 message Node {
   NodeMeta meta = 1;
   NodeSpec spec = 2;
+  NodeStatus status = 3;
 }

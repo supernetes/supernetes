@@ -40,6 +40,8 @@ import (
 type Instance interface {
 	// Run starts the instance's controllers. The controllers use cancel() to stop each other.
 	Run(ctx context.Context, cancel func()) error
+	// UpdateNodeStatus is used to asynchronously update the status of the node
+	UpdateNodeStatus(status *api.NodeStatus)
 	// StatusUpdater can be used to trigger Pod status updates in the associated Pod provider
 	tracker.StatusUpdater
 }
@@ -49,6 +51,7 @@ type instance struct {
 	podProvider         provider.PodProvider
 	workloadClient      api.WorkloadApiClient
 	tracker             tracker.Tracker
+	metricsProvider     provider.MetricsProvider
 	vkAuth              vkauth.Auth
 	enableKubeletServer bool
 }
@@ -102,9 +105,9 @@ func NewInstance(instanceCfg InstanceConfig) Instance {
 				},
 				// TODO: Apply these as a post-operation or source them directly from api.Node here?
 				Capacity: corev1.ResourceList{
-					"cpu":    resource.MustParse("1"),
-					"memory": resource.MustParse("1Gi"),
-					"pods":   resource.MustParse("1"),
+					"cpu":    *resource.NewQuantity(int64(instanceCfg.Node.Spec.CpuCount), resource.DecimalSI),
+					"memory": *resource.NewQuantity(int64(instanceCfg.Node.Spec.MemBytes), resource.BinarySI),
+					"pods":   resource.MustParse("100"), // TODO: This must be configurable
 				},
 				Addresses: []corev1.NodeAddress{
 					{
@@ -129,6 +132,7 @@ func NewInstance(instanceCfg InstanceConfig) Instance {
 	return &instance{
 		cfg:                 &cfg,
 		workloadClient:      instanceCfg.WorkloadClient,
+		metricsProvider:     provider.NewMetricsProvider(), // TODO: Take this in from the config?
 		tracker:             instanceCfg.Tracker,
 		vkAuth:              instanceCfg.VkAuth,
 		enableKubeletServer: enableKubeletServer,
@@ -181,7 +185,7 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 
 	// Set up pod controller
 	podProviderLogger := log.With().Str("scope", "provider").Logger()
-	i.podProvider = provider.NewPodProvider(&podProviderLogger, nodeName, i.workloadClient, i.tracker)
+	i.podProvider = provider.NewPodProvider(&podProviderLogger, nodeName, i.workloadClient, i.tracker, i.metricsProvider)
 	podControllerCfg := node.PodControllerConfig{
 		PodClient:         cfg.Client.CoreV1(),
 		EventRecorder:     cfg.EventRecorder,
@@ -322,6 +326,10 @@ func (i *instance) UpdateStatus(ctx context.Context, pod *corev1.Pod, cache bool
 	}
 
 	return i.podProvider.UpdateStatus(ctx, pod, cache)
+}
+
+func (i *instance) UpdateNodeStatus(status *api.NodeStatus) {
+	i.metricsProvider.Update(status)
 }
 
 func setReady(n *corev1.Node) *corev1.Node {

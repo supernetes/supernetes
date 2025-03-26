@@ -41,6 +41,24 @@ func (n *Number) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+// ToFloat converts the special number type to a regular float
+func (n *Number) ToFloat() float32 {
+	if !n.Set {
+		return float32(math.NaN())
+	}
+
+	if n.Infinite {
+		negative := 1
+		if n.Number < 0 {
+			negative = -1
+		}
+
+		return float32(math.Inf(negative))
+	}
+
+	return n.Number
+}
+
 // Compile-time type checking
 var _ json.Unmarshaler = &Version{}
 

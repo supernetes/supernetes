@@ -81,7 +81,7 @@ type Node struct {
 	InstanceType              string          `json:"instance_type,omitempty"` // Absent on LUMI, present on Mahti
 	LastBusy                  scontrol.Number `json:"last_busy"`               // Integer on LUMI, scontrol.Number on Mahti
 	McsLabel                  string          `json:"mcs_label"`
-	SpecializedMemory         int             `json:"specialized_memory"`
+	SpecializedMemory         int64           `json:"specialized_memory"`
 	Name                      string          `json:"name"`
 	NextStateAfterReboot      []string        `json:"next_state_after_reboot"`
 	Address                   string          `json:"address"`
@@ -90,15 +90,15 @@ type Node struct {
 	OperatingSystem           string          `json:"operating_system"`
 	Owner                     string          `json:"owner"`
 	Partitions                []string        `json:"partitions"`
-	Port                      int             `json:"port"`
-	RealMemory                int             `json:"real_memory"`
+	Port                      int32           `json:"port"`
+	RealMemory                int64           `json:"real_memory"`
 	Comment                   string          `json:"comment"`
 	Reason                    string          `json:"reason"`
 	ReasonChangedAt           scontrol.Number `json:"reason_changed_at"` // Integer on LUMI, scontrol.Number on Mahti
 	ReasonSetByUser           string          `json:"reason_set_by_user"`
 	ResumeAfter               scontrol.Number `json:"resume_after"`
 	Reservation               string          `json:"reservation"`
-	AllocMemory               int             `json:"alloc_memory"`
+	AllocMemory               int64           `json:"alloc_memory"`
 	AllocCpus                 int             `json:"alloc_cpus"`
 	AllocIdleCpus             int             `json:"alloc_idle_cpus"`
 	TresUsed                  string          `json:"tres_used"`
