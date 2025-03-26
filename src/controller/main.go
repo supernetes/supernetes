@@ -68,7 +68,7 @@ func main() {
 
 	workloadTracker := tracker.New()
 	nodeReconciler, err := node.NewReconciler(ctx, node.ReconcilerConfig{
-		Interval:       time.Minute,
+		Interval:       10 * time.Second,
 		NodeClient:     ep.Node(),
 		WorkloadClient: ep.Workload(),
 		Tracker:        workloadTracker,
@@ -77,7 +77,7 @@ func main() {
 	})
 	log.FatalErr(err).Msg("failed to create node reconciler")
 	workloadReconciler, err := workload.NewReconciler(ctx, workload.ReconcilerConfig{
-		Interval:      time.Minute,
+		Interval:      10 * time.Second,
 		Client:        ep.Workload(),
 		KubeConfig:    kubeConfig,
 		StatusUpdater: nodeReconciler,
