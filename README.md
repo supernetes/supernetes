@@ -8,24 +8,17 @@
 
 > [!NOTE]
 >
-> 📣 **Supernetes will be [on stage](https://kccnceu2025.sched.com/event/1tx7r/thousands-of-virtual-kubelets-1-to-1-mapping-a-supercomputer-to-kubernetes-with-supernetes-dennis-marttinen-aalto-university) at KubeCon + CloudNativeCon EU 2025!**
+> 📣 **Supernetes will be on stage at [KCD Helsinki 2025](https://community.cncf.io/events/details/cncf-kcd-helsinki-presents-kcd-helsinki-2025/)!**
 >
-> Join [@twelho](https://github.com/twelho) for an exploration into the HPC-to-cloud bridge landscape and hear the Supernetes origin story, with architectural deep dives and a live demo! Check out [Thousands of Virtual Kubelets: 1-to-1 Mapping a Supercomputer To Kubernetes With Supernetes](https://kccnceu2025.sched.com/event/1tx7r/thousands-of-virtual-kubelets-1-to-1-mapping-a-supercomputer-to-kubernetes-with-supernetes-dennis-marttinen-aalto-university)!
+> Join [@twelho](https://github.com/twelho) for an exploration into the HPC-to-cloud bridge landscape and hear the Supernetes origin story, with architectural deep dives and a live demo, now with updates from KubeCon + CloudNativeCon Europe 2025! Check it out: https://community.cncf.io/events/details/cncf-kcd-helsinki-presents-kcd-helsinki-2025/
 
 **Supernetes** (*Supercomputer* + *Kubernetes*) is a High Performance Computing (HPC) bridge for your Kubernetes environment: Expose your HPC nodes and jobs to Kubernetes-native tooling and schedulers, abstracting away the HPC-specifics. The goal is to provide a (near) complete abstraction: simulating what it would be like if your legacy HPC system ran Kubernetes natively.
 
-## Architecture
+## Supernetes at KubeCon Europe 2025
 
-Supernetes consists of two major components: the **controller** and the **agent**. The controller runs in a Kubernetes cluster providing the Kubernetes endpoint. The agent runs in your HPC environment, for example, on a login node, and interfaces with the HPC scheduler, such as Slurm.
+Supernetes was presented [live on stage](https://kccnceu2025.sched.com/event/1tx7r/thousands-of-virtual-kubelets-1-to-1-mapping-a-supercomputer-to-kubernetes-with-supernetes-dennis-marttinen-aalto-university) at KubeCon + CloudNativeCon EU 2025! In this talk [@twelho](https://github.com/twelho) presented the Supernetes origin story and architecture, and provided a live demo on LUMI. The talk also explored the HPC-to-cloud and bridge landscape more broadly, including future developments. **Check out the recording below:**
 
-![Supernetes Architecture](docs/media/supernetes-architecture.svg)
-
-To avoid challenges with firewalls in the HPC environment, the agent initiates an mTLS-secured connection to the controller (passing through the Gateway API endpoint of your Kubernetes cluster). Through a [GRPC reverse tunnel](https://github.com/jhump/grpctunnel) the roles are then reversed such that the controller can issue RPC calls against the agent. Once the connection has been established, the controller starts two reconciliation loops:
-
-1. The controller periodically queries the agent for the HPC nodes. The agent uses `scontrol` to discover the nodes (respecting configured filters), and sends this information to the agent via the [Supernetes node API](src/api/v1alpha1/node.proto). For each node, the controller then deploys a [Virtual Kubelet](https://virtual-kubelet.io) instance that represents the HPC node as Kubernetes node.
-2. The controller periodically queries the agent for the HPC jobs. The agent uses `scontrol` to observe the jobs (respecting configured filters), and sends this information to the agent via the [Supernetes workload API](src/api/v1alpha1/workload.proto). The controller then translates a job into one or more Pods (depending on the individual tasks of that job) that are scheduled onto the corresponding Virtual Kubelet nodes. Unscheduled jobs (pending, failed etc.) are also synchronized accordingly. Workloads sourced in this way (and not associated with a user Pod) are called **untracked** in Supernetes terminology (e.g., job 2 and job 3 in the above diagram).
-
-Finally, the controller also observes any Pods that users deploy directly to its Virtual Kubelet nodes. These are called **tracked** workloads, which will get transferred to the agent via the [Supernetes workload API](src/api/v1alpha1/workload.proto) and dispatched as Slurm jobs using `sbatch`. The dispatching occurs using an HPC container runtime, currently [Apptainer](https://apptainer.org/) and [SingularityCE](https://sylabs.io/singularity/) are supported. The OCI container image in the Pod specification is directly passed to this runtime. The returned job identifier is then used to associate and synchronize the status of the user's Pod with the reconciled Pods representing the job's tasks (e.g., job 1's Pods in the above diagram).
+[![Supernetes at KubeCon + CloudNativeCon Europe 2025](https://img.youtube.com/vi/QbR908kgk1Y/maxresdefault.jpg)](https://www.youtube.com/watch?v=QbR908kgk1Y)
 
 ## Features
 
@@ -50,6 +43,19 @@ Finally, the controller also observes any Pods that users deploy directly to its
 - [x] Metrics support for Virtual Kubelet nodes
 - [x] Log retrieval/streaming support for tracked workloads
 - [ ] Complete node state reconciliation (https://github.com/supernetes/supernetes/issues/35)
+
+## Architecture
+
+Supernetes consists of two major components: the **controller** and the **agent**. The controller runs in a Kubernetes cluster providing the Kubernetes endpoint. The agent runs in your HPC environment, for example, on a login node, and interfaces with the HPC scheduler, such as Slurm.
+
+![Supernetes Architecture](docs/media/supernetes-architecture.svg)
+
+To avoid challenges with firewalls in the HPC environment, the agent initiates an mTLS-secured connection to the controller (passing through the Gateway API endpoint of your Kubernetes cluster). Through a [GRPC reverse tunnel](https://github.com/jhump/grpctunnel) the roles are then reversed such that the controller can issue RPC calls against the agent. Once the connection has been established, the controller starts two reconciliation loops:
+
+1. The controller periodically queries the agent for the HPC nodes. The agent uses `scontrol` to discover the nodes (respecting configured filters), and sends this information to the agent via the [Supernetes node API](src/api/v1alpha1/node.proto). For each node, the controller then deploys a [Virtual Kubelet](https://virtual-kubelet.io) instance that represents the HPC node as Kubernetes node.
+2. The controller periodically queries the agent for the HPC jobs. The agent uses `scontrol` to observe the jobs (respecting configured filters), and sends this information to the agent via the [Supernetes workload API](src/api/v1alpha1/workload.proto). The controller then translates a job into one or more Pods (depending on the individual tasks of that job) that are scheduled onto the corresponding Virtual Kubelet nodes. Unscheduled jobs (pending, failed etc.) are also synchronized accordingly. Workloads sourced in this way (and not associated with a user Pod) are called **untracked** in Supernetes terminology (e.g., job 2 and job 3 in the above diagram).
+
+Finally, the controller also observes any Pods that users deploy directly to its Virtual Kubelet nodes. These are called **tracked** workloads, which will get transferred to the agent via the [Supernetes workload API](src/api/v1alpha1/workload.proto) and dispatched as Slurm jobs using `sbatch`. The dispatching occurs using an HPC container runtime, currently [Apptainer](https://apptainer.org/) and [SingularityCE](https://sylabs.io/singularity/) are supported. The OCI container image in the Pod specification is directly passed to this runtime. The returned job identifier is then used to associate and synchronize the status of the user's Pod with the reconciled Pods representing the job's tasks (e.g., job 1's Pods in the above diagram).
 
 ## Building
 
