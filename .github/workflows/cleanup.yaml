@@ -1,5 +1,4 @@
 on:
-  delete: # Branch or tag deletion
   pull_request:
     types:
       - closed # PR closed (whether merged or not)
@@ -11,7 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     if: github.event.ref_type != 'tag' # Ignore tags for now
     env:
-      BRANCH_NAME: ${{ (github.head_ref && format('pull-{0}', github.event.number)) || github.ref_name }}
+      BRANCH_NAME: ${{ format('pull-{0}', github.event.number) }}
     steps:
       - name: Check out deployment repository
         uses: actions/checkout@v4
