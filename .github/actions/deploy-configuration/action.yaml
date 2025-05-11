@@ -21,6 +21,8 @@ runs:
         rsync -a supernetes/deploy/ deploy/ && cd deploy
         kustomize edit set image "${{ inputs.digest }}"
         envsubst < ../supernetes/deploy/README.md > README.md
+      env:
+        BRANCH_NAME: ${{ inputs.branch }}
       shell: sh
     - name: Configure Git
       run: |
