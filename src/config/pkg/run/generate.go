@@ -38,6 +38,9 @@ type GenerateOptions struct {
 	ControllerSecretName      string
 	ControllerSecretNamespace string
 
+	NodeReconciliationInterval     time.Duration
+	WorkloadReconciliationInterval time.Duration
+
 	SlurmAccount   string
 	SlurmPartition string
 
@@ -96,6 +99,10 @@ func Generate(g *GenerateOptions) error {
 	controllerConfig := &config.ControllerConfig{
 		Port:       g.ControllerPort,
 		MTlsConfig: *controllerMTls,
+		Reconcile: config.ReconcileConfig{
+			NodeInterval:     g.NodeReconciliationInterval,
+			WorkloadInterval: g.WorkloadReconciliationInterval,
+		},
 	}
 
 	log.Debug().Msg("encoding controller configuration")
