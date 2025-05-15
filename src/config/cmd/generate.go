@@ -7,6 +7,8 @@
 package cmd
 
 import (
+	"time"
+
 	"github.com/lithammer/dedent"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -38,6 +40,8 @@ func NewCmdGenerate() *cobra.Command {
 			        --controller-port 12345 \
 			        --controller-secret-name custom-supernetes-config \
 			        --controller-secret-namespace custom-supernetes-namespace \
+					--reconcile-nodes 10s \
+					--reconcile-workloads 10s \
 			        --slurm-account project_123456789 \
 			        --slurm-partition standard \
 			        --filter-partition '^(?:standard)|(?:bench)$' \
@@ -64,6 +68,9 @@ func addGenerateFlags(fs *pflag.FlagSet, flags *run.GenerateFlags) {
 	fs.BoolVarP(&flags.ControllerSecret, "controller-secret", "s", true, "output controller configuration as a Kubernetes Secret")
 	fs.StringVar(&flags.ControllerSecretName, "controller-secret-name", "supernetes-config", "name of the controller configuration Secret")
 	fs.StringVar(&flags.ControllerSecretNamespace, "controller-secret-namespace", "supernetes", "namespace of the controller configuration Secret")
+
+	fs.DurationVar(&flags.NodeReconciliationInterval, "reconcile-nodes", time.Minute, "node reconciliation interval")
+	fs.DurationVar(&flags.WorkloadReconciliationInterval, "reconcile-workloads", time.Minute, "workload reconciliation interval")
 
 	fs.StringVar(&flags.SlurmAccount, "slurm-account", "", "default Slurm partition to use for dispatching jobs")
 	fs.StringVar(&flags.SlurmPartition, "slurm-partition", "", "default Slurm partition to use for dispatching jobs")

@@ -7,6 +7,8 @@
 package config
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -14,8 +16,14 @@ import (
 // ControllerConfig encapsulates all relevant configuration for deploying a controller
 // TODO: Versioning
 type ControllerConfig struct {
-	Port       uint16     `json:"port"`       // Port that the controller binds to
-	MTlsConfig MTlsConfig `json:"mTLSConfig"` // mTLS configuration for the controller
+	Port       uint16          `json:"port"`       // Port that the controller binds to
+	MTlsConfig MTlsConfig      `json:"mTLSConfig"` // mTLS configuration for the controller
+	Reconcile  ReconcileConfig `json:"reconcile"`  // Reconciliation configuration
+}
+
+type ReconcileConfig struct {
+	NodeInterval     time.Duration `json:"nodeInterval"`     // Node reconciliation interval
+	WorkloadInterval time.Duration `json:"workloadInterval"` // Workload reconciliation interval
 }
 
 // ToSecret converts the ControllerConfig into a corev1.Secret

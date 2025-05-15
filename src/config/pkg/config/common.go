@@ -22,6 +22,7 @@ type MTlsConfig struct {
 }
 
 // Decode a configuration struct from the given YAML bytes
+// TODO: This should validate the configuration as well
 func Decode[T any](input []byte) (*T, error) {
 	var config T
 	if err := yaml.UnmarshalStrict(input, &config); err != nil {

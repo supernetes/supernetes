@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/spf13/pflag"
 	"github.com/supernetes/supernetes/common/pkg/log"
@@ -68,7 +67,7 @@ func main() {
 
 	workloadTracker := tracker.New()
 	nodeReconciler, err := node.NewReconciler(ctx, node.ReconcilerConfig{
-		Interval:       10 * time.Second,
+		Interval:       config.Reconcile.NodeInterval,
 		NodeClient:     ep.Node(),
 		WorkloadClient: ep.Workload(),
 		Tracker:        workloadTracker,
@@ -77,7 +76,7 @@ func main() {
 	})
 	log.FatalErr(err).Msg("failed to create node reconciler")
 	workloadReconciler, err := workload.NewReconciler(ctx, workload.ReconcilerConfig{
-		Interval:      10 * time.Second,
+		Interval:      config.Reconcile.WorkloadInterval,
 		Client:        ep.Workload(),
 		KubeConfig:    kubeConfig,
 		StatusUpdater: nodeReconciler,
