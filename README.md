@@ -6,19 +6,19 @@
 [![Go Report Card for `controller`](https://goreportcard.com/badge/github.com/supernetes/supernetes/controller)](https://goreportcard.com/report/github.com/supernetes/supernetes/controller)
 [![Latest Release](https://img.shields.io/github/v/release/supernetes/supernetes?sort=semver)](https://github.com/supernetes/supernetes/releases)
 
-> [!NOTE]
->
-> 📣 **Supernetes will be on stage at [KCD Helsinki 2025](https://community.cncf.io/events/details/cncf-kcd-helsinki-presents-kcd-helsinki-2025/)!**
->
-> Join [@twelho](https://github.com/twelho) for an exploration into the HPC-to-cloud bridge landscape and hear the Supernetes origin story, with architectural deep dives and a live demo, now with updates from KubeCon + CloudNativeCon Europe 2025! Check it out: https://community.cncf.io/events/details/cncf-kcd-helsinki-presents-kcd-helsinki-2025/
-
-**Supernetes** (*Supercomputer* + *Kubernetes*) is a High Performance Computing (HPC) bridge for your Kubernetes environment: Expose your HPC nodes and jobs to Kubernetes-native tooling and schedulers, abstracting away the HPC-specifics. The goal is to provide a (near) complete abstraction: simulating what it would be like if your legacy HPC system ran Kubernetes natively.
+**Supernetes** (*Supercomputer* + *Kubernetes*) is a High Performance Computing (HPC) bridge for your Kubernetes environment: Expose your HPC nodes and jobs to Kubernetes-native tooling and schedulers, abstracting away the HPC-specifics. The goal is to provide a (near) complete abstraction: simulating what it would be like if your legacy HPC system ran Kubernetes natively. In simple terms: Supernetes enables you to see your Slurm nodes and jobs through the lens of Kubernetes nodes and Pods.
 
 ## Supernetes at KubeCon Europe 2025
 
-Supernetes was presented [live on stage](https://kccnceu2025.sched.com/event/1tx7r/thousands-of-virtual-kubelets-1-to-1-mapping-a-supercomputer-to-kubernetes-with-supernetes-dennis-marttinen-aalto-university) at KubeCon + CloudNativeCon EU 2025! In this talk [@twelho](https://github.com/twelho) presented the Supernetes origin story and architecture, and provided a live demo on LUMI. The talk also explored the HPC-to-cloud and bridge landscape more broadly, including future developments. **Check out the recording below:**
+Supernetes was presented [live on stage](https://kccnceu2025.sched.com/event/1tx7r/thousands-of-virtual-kubelets-1-to-1-mapping-a-supercomputer-to-kubernetes-with-supernetes-dennis-marttinen-aalto-university) at KubeCon + CloudNativeCon EU 2025! In this talk [@twelho](https://github.com/twelho) presented the Supernetes origin story and architecture, and provided a live demo on the global top-10 supercomputer LUMI. The talk also explored the HPC-to-cloud and bridge landscape more broadly, including future developments. **Check out the recording below:**
 
 [![Supernetes at KubeCon + CloudNativeCon Europe 2025](https://img.youtube.com/vi/QbR908kgk1Y/maxresdefault.jpg)](https://www.youtube.com/watch?v=QbR908kgk1Y)
+
+## Supernetes at KCD Helsinki 2025
+
+Supernetes was also presented by [@twelho](https://github.com/twelho) live at the inaugural [KCD Helsinki 2025](https://community.cncf.io/events/details/cncf-kcd-helsinki-presents-kcd-helsinki-2025/)! This talk is an extended version of the KubeCon + CloudNativeCon Europe 2025 iteration, expanding primarily on achieving true HPC application portability across environments using OCI container packaging. **Check out the recording below:**
+
+[![Supernetes at KCD Helsinki 2025](https://img.youtube.com/vi/Jcb1Vs4MeK4/maxresdefault.jpg)](https://www.youtube.com/watch?v=Jcb1Vs4MeK4)
 
 ## Features
 
