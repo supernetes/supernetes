@@ -170,9 +170,12 @@ Check [supernetes/bootstrap](https://github.com/supernetes/bootstrap) for detail
 
 Alternatively, if you just want to deploy the Supernetes controller in your existing, pre-configured Kubernetes cluster, check out [supernetes/deploy](https://github.com/supernetes/deploy). Make sure you have an ingress path set up such that the agent can connect to the controller from outside the cluster. Supernetes is configured for Gateway API support by default, see the [deployment configuration in the bootstrap repository](https://github.com/supernetes/bootstrap/tree/master/work/manifests/supernetes) for an example Gateway definition.
 
-## Authors
+## Author
 
 - Dennis Marttinen ([@twelho](https://github.com/twelho))
+
+## Contributors (Thanks!)
+
 - Erika Marttinen ([@purkka](https://github.com/purkka))
 - Lucas Käldström ([@luxas](https://github.com/luxas))
 
