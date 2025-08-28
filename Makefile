@@ -3,7 +3,7 @@ all: agent controller config
 c := ,
 _docker: # Force target for pattern rule phony
 _docker-%: _docker
-	docker build -t supernetes-build . $(if $(strip $(CI)),--cache-to type=gha$(c)mode=max --cache-from type=gha,)
+	docker build -t supernetes-build . $(if $(strip $(GITHUB_ACTIONS)),--cache-to type=gha$(c)mode=max --cache-from type=gha,)
 	docker run --rm --init $(if $(strip $(CI)),,-it) \
 		-e CGO_ENABLED=0 \
 		-e GOBIN=/build/bin \
