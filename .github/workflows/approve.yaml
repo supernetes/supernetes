@@ -18,7 +18,7 @@ name: Approve
 jobs:
   approve:
     name: Deployments
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Auto-approve deployments
         uses: activescott/automate-environment-deployment-approval@main
