@@ -14,7 +14,7 @@ require (
 	github.com/supernetes/supernetes/common v0.0.0
 	github.com/supernetes/supernetes/config v0.0.0
 	google.golang.org/grpc v1.67.3
-	google.golang.org/protobuf v1.36.1
+	google.golang.org/protobuf v1.36.8
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd
 )
 
