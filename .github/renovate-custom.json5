@@ -1,0 +1,39 @@
+// `preUpdateOptions` or similar doesn't exist: https://github.com/renovatebot/renovate/discussions/35466
+
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": ["config:recommended"],
+    "repositories": ["supernetes/supernetes"],
+    "enabledManagers": ["gomod", "github-actions"],
+    "packageRules": [
+        {
+            "matchManagers": ["github-actions"],
+            "groupName": "CI/CD system"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/agent/**"],
+            "groupName": "dependencies of `agent`"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/api/**"],
+            "groupName": "dependencies of `api`"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/controller/**"],
+            "groupName": "dependencies of `controller`"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/config/**"],
+            "groupName": "dependencies of `config`"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/common/**"],
+            "groupName": "dependencies of `common`"
+        }
+    ]
+}

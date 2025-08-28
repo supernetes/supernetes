@@ -1,0 +1,32 @@
+# The strategy here might be to override the entrypoint (using `docker-cmd-file`) and run `make proto` from there before
+# the actual entrypoint. This should be possible, since `make` is present in the Renovate container, and there's an
+# option to pass the Docker socket into the container as well (`mount-docker-socket` and `docker-socket-host-path`),
+# enabling the containerized build system to run protoc. In any case, Dependabot won't cut it here.
+
+#on:
+#  schedule:
+#    - cron: "0 0 * * 1" # Every Monday
+
+on:
+  pull_request:
+
+name: Renovate
+jobs:
+  renovate:
+    name: Dependencies
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+      - name: Use Docker in rootless mode
+        uses: ScribeMD/rootless-docker@0.2.2
+      - name: Run Renovate
+        uses: renovatebot/github-action@v43.0.8
+        with:
+          configurationFile: .github/renovate-custom.json5
+#          docker-cmd-file: .github/renovate-entrypoint.sh
+          docker-user: root # Rootless
+#          mount-docker-socket: true
+          token: ${{ secrets.RENOVATE_TOKEN }}
+#        env:
+#          LOG_LEVEL: 'debug'
