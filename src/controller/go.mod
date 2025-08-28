@@ -3,27 +3,27 @@ module github.com/supernetes/supernetes/controller
 go 1.23.1
 
 require (
-	github.com/fluxcd/cli-utils v0.36.0-flux.9
-	github.com/fluxcd/kustomize-controller/api v1.4.0
-	github.com/fluxcd/pkg/ssa v0.41.1
+	github.com/fluxcd/cli-utils v0.36.0-flux.14
+	github.com/fluxcd/kustomize-controller/api v1.6.1
+	github.com/fluxcd/pkg/ssa v0.52.0
 	github.com/jhump/grpctunnel v0.3.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_model v0.6.1
-	github.com/rs/zerolog v1.33.0
-	github.com/spf13/pflag v1.0.5
+	github.com/prometheus/client_model v0.6.2
+	github.com/rs/zerolog v1.34.0
+	github.com/spf13/pflag v1.0.7
 	github.com/supernetes/supernetes/api v0.0.0
 	github.com/supernetes/supernetes/common v0.0.0
-	github.com/supernetes/supernetes/config v0.0.0
+	github.com/supernetes/supernetes/config v0.1.0
 	github.com/virtual-kubelet/virtual-kubelet v1.11.0
-	google.golang.org/grpc v1.67.1
-	google.golang.org/protobuf v1.35.1
+	google.golang.org/grpc v1.75.0
+	google.golang.org/protobuf v1.36.8
 	k8s.io/api v0.31.2
 	k8s.io/apimachinery v0.31.2
 	k8s.io/apiserver v0.31.2
 	k8s.io/client-go v0.31.2
 	k8s.io/component-base v0.31.2
-	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
-	sigs.k8s.io/controller-runtime v0.19.1
+	k8s.io/utils 0af2bda4dd1d
+	sigs.k8s.io/controller-runtime v0.22.0
 )
 
 require (
@@ -147,7 +147,7 @@ require (
 )
 
 replace (
-	cloud.google.com/go => cloud.google.com/go v0.115.0 // https://github.com/grpc/grpc-go/issues/6696#issuecomment-1857815248
+	cloud.google.com/go => cloud.google.com/go v0.121.6 // https://github.com/grpc/grpc-go/issues/6696#issuecomment-1857815248
 	//github.com/prometheus/common => github.com/prometheus/common v0.60.1 // https://github.com/prometheus/common/pull/665 for Virtual Kubelet
 	github.com/supernetes/supernetes/api v0.0.0 => ../api
 	github.com/supernetes/supernetes/common v0.0.0 => ../common
