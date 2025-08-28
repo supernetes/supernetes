@@ -1,0 +1,52 @@
+// `preUpdateOptions` or similar doesn't exist: https://github.com/renovatebot/renovate/discussions/35466
+
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": ["config:recommended", ":gitSignOff"],
+    "gitAuthor": "twelho (Renovate) <twelho+renovate@welho.tech>",
+    "onboarding": false, // Self-hosted Renovate
+    "requireConfig": "optional", // Self-hosted Renovate
+    "repositories": ["supernetes/supernetes"],
+    "enabledManagers": ["gomod", "github-actions"],
+    "commitMessagePrefix": "chore:",
+    "commitMessageAction": "update",
+    "commitMessageLowerCase": "never",
+    "prHourlyLimit": 0,
+    "automerge": true, // Enable GitHub auto-merging for Renovate
+    "allowedCommands": ["^make .*$"],
+    "postUpgradeTasks": {
+        "commands": ["make CI=true tidy"],
+        "executionMode": "branch"
+    },
+    "packageRules": [
+        {
+            "matchManagers": ["github-actions"],
+            "groupName": "CI/CD dependencies"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/agent/**"],
+            "groupName": "dependencies of `agent`"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/api/**"],
+            "groupName": "dependencies of `api`"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/controller/**"],
+            "groupName": "dependencies of `controller`"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/config/**"],
+            "groupName": "dependencies of `config`"
+        },
+        {
+            "matchManagers": ["gomod"],
+            "matchFileNames": ["src/common/**"],
+            "groupName": "dependencies of `common`"
+        }
+    ]
+}
