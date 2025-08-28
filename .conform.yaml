@@ -16,6 +16,7 @@ policies:
       maximumOfOneCommit: true
       conventional:
         types:
+          - chore
           - ci
           - docs
           - meta
