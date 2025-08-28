@@ -7,13 +7,13 @@ name: Cleanup
 jobs:
   cleanup:
     name: Configuration
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.event.ref_type != 'tag' # Ignore tags for now
     env:
       BRANCH_NAME: ${{ format('pull-{0}', github.event.number) }}
     steps:
       - name: Check out deployment repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: supernetes/deploy
           fetch-depth: 0

@@ -18,13 +18,13 @@ jobs:
       token: ${{ secrets.AUTO_APPROVE_TOKEN }}
   controller:
     name: Controller
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     environment: deploy
     permissions:
       packages: write
     steps:
       - name: Check out sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
@@ -37,7 +37,7 @@ jobs:
         with:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Check out deployment repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: supernetes/deploy
           fetch-depth: 0
