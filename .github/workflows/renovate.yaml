@@ -1,0 +1,31 @@
+# This is self-hosted Renovate: we can't use the Mend-hosted one, since we need to be able to run `make tidy` in
+# `postUpgradeTasks` to both generate the Protobuf artifacts and sync dependency updates across the components.
+# This remains a paid feature for the hosted version, and an absent feature in Dependabot.
+
+on:
+  schedule:
+    - cron: "0 15 * * 1" # Run a pass every Monday at 15:00
+  workflow_dispatch: # Manual invocation option
+
+name: Renovate
+jobs:
+  renovate:
+    name: Dependencies
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+      - name: Use Docker in rootless mode
+        uses: ScribeMD/rootless-docker@0.2.2
+      - name: Source environment
+        run: echo XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" >> "$GITHUB_ENV"
+      - name: Run Renovate
+        uses: renovatebot/github-action@v43.0.8
+        with:
+          configurationFile: .github/renovate-custom.json5
+          docker-user: root # We're running rootless
+          mount-docker-socket: true # Required for `make tidy` inside the Renovate container
+          docker-socket-host-path: ${{ env.XDG_RUNTIME_DIR }}/docker.sock # Rootless Docker socket
+          token: ${{ secrets.RENOVATE_TOKEN }}
+        env:
+          RENOVATE_GIT_PRIVATE_KEY: ${{ secrets.RENOVATE_GIT_PRIVATE_KEY }}
