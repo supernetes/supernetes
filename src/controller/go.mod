@@ -151,8 +151,8 @@ require (
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.115.0 // https://github.com/grpc/grpc-go/issues/6696#issuecomment-1857815248
 	//github.com/prometheus/common => github.com/prometheus/common v0.60.1 // https://github.com/prometheus/common/pull/665 for Virtual Kubelet
-	github.com/supernetes/supernetes/api v0.0.0 => ../api
-	github.com/supernetes/supernetes/common v0.0.0 => ../common
-	github.com/supernetes/supernetes/config v0.0.0 => ../config
+	github.com/supernetes/supernetes/api => ../api
+	github.com/supernetes/supernetes/common => ../common
+	github.com/supernetes/supernetes/config => ../config
 	github.com/virtual-kubelet/virtual-kubelet => github.com/twelho/virtual-kubelet v0.0.0-20241031125312-8ddc886f6e1d
 )
