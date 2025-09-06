@@ -2,7 +2,7 @@ module github.com/supernetes/supernetes/common
 
 go 1.23.0
 
-toolchain go1.24.7
+toolchain go1.25.1
 
 require (
 	github.com/go-logr/logr v1.4.3
