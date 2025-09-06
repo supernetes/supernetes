@@ -99,7 +99,7 @@ jobs:
           filter: tree:0
       - name: Set up runtime
         uses: ./.github/actions/runtime
-      - name: Compile protobuf artifacts
+      - name: Compile Protobuf artifacts
         run: make proto
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v8
