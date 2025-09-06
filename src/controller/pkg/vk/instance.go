@@ -142,7 +142,7 @@ func NewInstance(instanceCfg InstanceConfig) Instance {
 // Run starts the instance controllers with the given context
 func (i *instance) Run(ctx context.Context, cancel func()) error {
 	cfg := *i.cfg                                        // Instance configuration, shallow copy for assignment overrides
-	nodeName := cfg.NodeSpec.ObjectMeta.Name             // Shorthand for node name
+	nodeName := cfg.NodeSpec.Name                        // Shorthand for node name
 	log := sulog.Scoped().Str("node", nodeName).Logger() // Node-specific scoped logger
 
 	// Configure the error handler for status updates
