@@ -49,8 +49,8 @@ require (
 )
 
 replace (
-	github.com/supernetes/supernetes/api v0.0.0 => ../api
-	github.com/supernetes/supernetes/common v0.0.0 => ../common
-	github.com/supernetes/supernetes/config v0.0.0 => ../config
+	github.com/supernetes/supernetes/api => ../api
+	github.com/supernetes/supernetes/common => ../common
+	github.com/supernetes/supernetes/config => ../config
 	k8s.io/api => k8s.io/api v0.30.0 // k8s.io/api/resource/v1alpha2 needed by k8s.io/client-go/kubernetes/scheme
 )
