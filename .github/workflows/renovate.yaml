@@ -4,7 +4,10 @@
 
 on:
   schedule:
-    - cron: "0 15 * * 1" # Run a pass every Monday at 15:00
+    # Run passes every 15 minutes on Mondays between 15:00 and 16:00. We need to trigger this workflow
+    # multiple times, as Renovate will only auto-merge one branch/PR, per target branch, per run:
+    # https://docs.renovatebot.com/key-concepts/automerge/#renovate-automerges-take-time
+    - cron: "0/15 15 * * 1"
   workflow_dispatch: # Manual invocation option
 
 name: Renovate
