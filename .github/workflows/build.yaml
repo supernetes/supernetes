@@ -8,10 +8,10 @@ name: Build
 jobs:
   build:
     name: Binaries
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
