@@ -21,7 +21,7 @@ runs:
         restore-keys: docker-volumes-${{ runner.arch }}
       if: ${{ !inputs.save-cache }}
     - name: Use Docker in rootless mode
-      uses: ScribeMD/rootless-docker@0.2.2
+      uses: AJGranowski/rootless-docker-action@23266b5b1fa508009c9ac4be4f8bde450fc3e269
     - name: Set up Buildkit
       uses: docker/setup-buildx-action@v3
       with:
