@@ -8,13 +8,13 @@ name: Check
 jobs:
   conform:
     name: Conformance
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:
       image: golang:1
       options: --user 1001 # https://github.com/actions/runner/issues/2033#issuecomment-1598547465
     steps:
       - name: Check out sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -40,10 +40,10 @@ jobs:
         run: conform enforce
   tidy:
     name: Module Tidiness
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
@@ -72,12 +72,12 @@ jobs:
   # It's 2024 and https://github.com/golangci/golangci-lint/issues/828 has still not been resolved
   resolve-modules:
     name: Resolve Modules
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout Sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Discover modules
         id: set-matrix
         run: |
@@ -86,13 +86,13 @@ jobs:
   golangci:
     name: Linting
     needs: resolve-modules
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix: ${{ fromJson(needs.resolve-modules.outputs.matrix) }}
       fail-fast: false
     steps:
       - name: Check out sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # https://github.com/actions/checkout/issues/1471#issuecomment-1755639487
           fetch-depth: 0
@@ -102,7 +102,7 @@ jobs:
       - name: Compile protobuf artifacts
         run: make proto
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
           args: --timeout=5m
           version: latest
