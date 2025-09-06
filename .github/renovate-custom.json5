@@ -1,4 +1,4 @@
-// `preUpdateOptions` or similar doesn't exist: https://github.com/renovatebot/renovate/discussions/35466
+// `preUpgradeTasks` or similar doesn't exist: https://github.com/renovatebot/renovate/discussions/35466
 
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",

@@ -18,17 +18,31 @@ jobs:
     steps:
       - name: Check out sources
         uses: actions/checkout@v5
-      - name: Use Docker in rootless mode
-        uses: ScribeMD/rootless-docker@0.2.2
-      - name: Source environment
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
+      - name: Set up runtime
+        uses: ./.github/actions/runtime
+      - name: Compile Protobuf artifacts
+        run: make proto
+      - name: Source variables from the environment
         run: echo XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" >> "$GITHUB_ENV"
+      # Due to the way the Docker socket forwarding works, bind-mounted volume paths are enacted on the host. This
+      # means the repo path inside and outside the Renovate container must match for Renovate to run `make tidy`.
+      - name: Prepare host-side paths for Renovate
+        run: |
+          mkdir -p "/tmp/renovate/repos/github/${{ github.repository_owner }}"
+          ln -s "$PWD" "/tmp/renovate/repos/github/${{ github.repository }}"
       - name: Run Renovate
         uses: renovatebot/github-action@v43.0.10
         with:
           configurationFile: .github/renovate-custom.json5
           docker-user: root # We're running rootless
+          # Mount the local checkout including generated code in the Renovate container
+          docker-volumes: /tmp:/tmp;.:/tmp/renovate/repos/github/${{ github.repository }}
           mount-docker-socket: true # Required for `make tidy` inside the Renovate container
           docker-socket-host-path: ${{ env.XDG_RUNTIME_DIR }}/docker.sock # Rootless Docker socket
           token: ${{ secrets.RENOVATE_TOKEN }}
         env:
           RENOVATE_GIT_PRIVATE_KEY: ${{ secrets.RENOVATE_GIT_PRIVATE_KEY }}
+          RENOVATE_PERSIST_REPO_DATA: true
+          RENOVATE_BASE_DIR: /tmp/renovate
