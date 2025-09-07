@@ -20,9 +20,9 @@ import (
 	suerr "github.com/supernetes/supernetes/common/pkg/error"
 	sulog "github.com/supernetes/supernetes/common/pkg/log"
 	vkapi "github.com/virtual-kubelet/virtual-kubelet/node/api"
-	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	statsv1alpha1 "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 	"k8s.io/utils/ptr"
 )
 
