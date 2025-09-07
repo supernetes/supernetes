@@ -14,7 +14,7 @@ require (
 	github.com/supernetes/supernetes/api v0.0.0
 	github.com/supernetes/supernetes/common v0.0.0
 	github.com/supernetes/supernetes/config v0.1.0
-	github.com/virtual-kubelet/virtual-kubelet v1.11.0
+	github.com/virtual-kubelet/virtual-kubelet v1.11.1-0.20250611220432-84502b708d8f
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8
 	k8s.io/api v0.34.0
@@ -22,6 +22,7 @@ require (
 	k8s.io/apiserver v0.34.0
 	k8s.io/client-go v0.34.0
 	k8s.io/component-base v0.34.0
+	k8s.io/kubelet v0.31.4
 	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
 	sigs.k8s.io/controller-runtime v0.22.0
 )
@@ -151,5 +152,4 @@ replace (
 	github.com/supernetes/supernetes/api => ../api
 	github.com/supernetes/supernetes/common => ../common
 	github.com/supernetes/supernetes/config => ../config
-	github.com/virtual-kubelet/virtual-kubelet => github.com/twelho/virtual-kubelet v0.0.0-20241031125312-8ddc886f6e1d
 )
