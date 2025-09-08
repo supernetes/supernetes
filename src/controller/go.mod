@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/fluxcd/cli-utils v0.36.0-flux.15
 	github.com/fluxcd/kustomize-controller/api v1.6.1
-	github.com/fluxcd/pkg/ssa v0.53.0
+	github.com/fluxcd/pkg/ssa v0.54.0
 	github.com/jhump/grpctunnel v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_model v0.6.2
@@ -24,7 +24,7 @@ require (
 	k8s.io/component-base v0.34.0
 	k8s.io/kubelet v0.31.4
 	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
-	sigs.k8s.io/controller-runtime v0.22.0
+	sigs.k8s.io/controller-runtime v0.22.1
 )
 
 require (
@@ -141,7 +141,6 @@ require (
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.20.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
