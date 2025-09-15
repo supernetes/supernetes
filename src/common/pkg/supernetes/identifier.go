@@ -28,5 +28,3 @@ const ImagePlaceholder = "none"
 
 const NodeTypeVirtualKubelet = "virtual-kubelet"
 const NodeRoleSupernetes = "supernetes"
-
-const CertSANSupernetes = "supernetes.internal"

@@ -91,7 +91,7 @@ func (gf *GenerateFlags) NewGenerateOptions(_ []string, _ *pflag.FlagSet) (*Gene
 func Generate(g *GenerateOptions) error {
 	log.Debug().Msg("creating bonded mTLS configuration for controller and agent")
 	validityPeriod := time.Duration(g.CertDaysValid) * time.Hour * 24
-	controllerMTls, agentMTls, err := generate.MTls(validityPeriod)
+	controllerMTls, agentMTls, err := generate.NewMTlsBinding(validityPeriod, g.AgentEndpoint).CreatePair()
 	if err != nil {
 		return err
 	}
