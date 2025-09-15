@@ -21,7 +21,7 @@ import (
 	"github.com/supernetes/supernetes/agent/pkg/server"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
-	"github.com/supernetes/supernetes/common/pkg/supernetes"
+	"github.com/supernetes/supernetes/common/pkg/util"
 	suconfig "github.com/supernetes/supernetes/config/pkg/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -64,7 +64,7 @@ func Run(options *Options) {
 	log.Info().Msg("starting Supernetes agent")
 
 	log.Info().Msgf("connecting to endpoint %q", config.Endpoint)
-	conn, err := grpc.NewClient(config.Endpoint, loadCreds(&config.MTlsConfig))
+	conn, err := grpc.NewClient(config.Endpoint, loadCreds(config))
 	log.FatalErr(err).Msg("failed to connect")
 	defer func() { log.FatalErr(conn.Close()).Msg("failed to close connection") }()
 
@@ -112,7 +112,9 @@ func Run(options *Options) {
 	log.Info().Msg("agent finished")
 }
 
-func loadCreds(mTlsConfig *suconfig.MTlsConfig) grpc.DialOption {
+func loadCreds(config *suconfig.AgentConfig) grpc.DialOption {
+	mTlsConfig := &config.MTlsConfig
+
 	cert, err := tls.X509KeyPair([]byte(mTlsConfig.Cert), []byte(mTlsConfig.Key))
 	log.FatalErr(err).Msg("failed to load client key pair")
 
@@ -121,9 +123,12 @@ func loadCreds(mTlsConfig *suconfig.MTlsConfig) grpc.DialOption {
 		log.Fatal().Msg("failed to parse CA certificate")
 	}
 
+	hostname, err := util.Hostname(config.Endpoint)
+	log.FatalErr(err).Msg("failed to parse hostname from endpoint")
+
 	tlsConfig := &tls.Config{
 		MinVersion:   tls.VersionTLS13,
-		ServerName:   supernetes.CertSANSupernetes,
+		ServerName:   hostname,
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      ca,
 	}

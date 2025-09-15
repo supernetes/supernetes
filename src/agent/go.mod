@@ -40,6 +40,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.34.0 // indirect
 	k8s.io/apimachinery v0.34.0 // indirect
+	k8s.io/client-go v0.34.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
@@ -51,5 +52,4 @@ replace (
 	github.com/supernetes/supernetes/api => ../api
 	github.com/supernetes/supernetes/common => ../common
 	github.com/supernetes/supernetes/config => ../config
-	k8s.io/api => k8s.io/api v0.30.0 // k8s.io/api/resource/v1alpha2 needed by k8s.io/client-go/kubernetes/scheme
 )

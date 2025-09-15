@@ -15,7 +15,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/supernetes/supernetes/common/pkg/supernetes"
+	"github.com/supernetes/supernetes/common/pkg/util"
 	"github.com/supernetes/supernetes/config/pkg/config"
 )
 
@@ -72,6 +72,24 @@ func (c *certificateData) toMTls(ca *signedCaData) (*config.MTlsConfig, error) {
 	}, nil
 }
 
+type mTlsBinding struct {
+	validFor time.Duration
+	endpoint string
+}
+
+type MTlsBinding interface {
+	CreatePair() (*config.MTlsConfig, *config.MTlsConfig, error)
+}
+
+var _ MTlsBinding = &mTlsBinding{}
+
+func NewMTlsBinding(validFor time.Duration, endpoint string) MTlsBinding {
+	return &mTlsBinding{
+		validFor: validFor,
+		endpoint: endpoint,
+	}
+}
+
 type certType int
 
 const (
@@ -80,7 +98,7 @@ const (
 	server
 )
 
-func initCert(cType certType, validFor time.Duration) (*certificateData, error) {
+func (m *mTlsBinding) initCert(cType certType) (*certificateData, error) {
 	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate keys: %w", err)
@@ -103,7 +121,7 @@ func initCert(cType certType, validFor time.Duration) (*certificateData, error) 
 	}
 
 	notBefore := time.Now()
-	notAfter := notBefore.Add(validFor)
+	notAfter := notBefore.Add(m.validFor)
 
 	var keyUsage x509.KeyUsage
 	switch cType {
@@ -126,7 +144,12 @@ func initCert(cType certType, validFor time.Duration) (*certificateData, error) 
 	var dnsNames []string
 	switch cType {
 	case server:
-		dnsNames = append(dnsNames, supernetes.CertSANSupernetes)
+		hostname, err := util.Hostname(m.endpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		dnsNames = append(dnsNames, hostname)
 	default:
 	}
 
@@ -150,9 +173,9 @@ func initCert(cType certType, validFor time.Duration) (*certificateData, error) 
 	}, nil
 }
 
-// MTls generates an mTLS configuration pair for a controller and an agent
-func MTls(validFor time.Duration) (*config.MTlsConfig, *config.MTlsConfig, error) {
-	caCert, err := initCert(ca, validFor)
+// CreatePair generates an mTLS configuration pair for a controller and an agent
+func (m *mTlsBinding) CreatePair() (*config.MTlsConfig, *config.MTlsConfig, error) {
+	caCert, err := m.initCert(ca)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to initialize CA certificate: %w", err)
 	}
@@ -162,12 +185,12 @@ func MTls(validFor time.Duration) (*config.MTlsConfig, *config.MTlsConfig, error
 		return nil, nil, fmt.Errorf("unable to self-sign CA certificate: %w", err)
 	}
 
-	controllerCert, err := initCert(server, validFor)
+	controllerCert, err := m.initCert(server)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to initialize controller certificate: %w", err)
 	}
 
-	agentCert, err := initCert(client, validFor)
+	agentCert, err := m.initCert(client)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to initialize agent certificate: %w", err)
 	}
