@@ -35,17 +35,19 @@ type KubeletServer struct {
 	kubeClient    kubernetes.Interface
 	handler       vkapi.PodHandlerConfig
 	vkAuth        vkauth.Auth
+	disableAuth   bool
 	nodeName      string
 	nodeAddresses func() []v1.NodeAddress
 	port          atomic.Int32
 	ready         chan struct{}
 }
 
-func NewKubeletServer(kubeClient kubernetes.Interface, handler vkapi.PodHandlerConfig, vkAuth vkauth.Auth, nodeName string, nodeAddresses func() []v1.NodeAddress) *KubeletServer {
+func NewKubeletServer(kubeClient kubernetes.Interface, handler vkapi.PodHandlerConfig, vkAuth vkauth.Auth, disableAuth bool, nodeName string, nodeAddresses func() []v1.NodeAddress) *KubeletServer {
 	return &KubeletServer{
 		kubeClient:    kubeClient,
 		handler:       handler,
 		vkAuth:        vkAuth,
+		disableAuth:   disableAuth,
 		nodeName:      nodeName,
 		nodeAddresses: nodeAddresses,
 		ready:         make(chan struct{}),
@@ -95,9 +97,18 @@ func (s *KubeletServer) Run(ctx context.Context, log *zerolog.Logger) error {
 	apiHandler := http.NewServeMux()
 	apiHandler.Handle("/", vkapi.PodHandler(s.handler, false))
 
-	vkAuth, err := s.vkAuth.VkAuth(s.nodeName)
-	if err != nil {
-		return err
+	vkAuth := nodeutil.NoAuth()
+	if s.disableAuth {
+		// The OpenShift/OKD dashboard and `oc` CLI do not pass any credentials when accessing the Kubelet API, so allow
+		// anonymous access to all resources for now. There might be potential for a more fine-grained authentication
+		// configuration, such as disabling auth just for container log retrieval, although that would require
+		// duplicating and modifying the VK PodHandler logic here as well as indexing and covering all relevant routes.
+		log.Debug().Msgf("warning: Kubelet HTTP server authentication disabled (OpenShift/OKD mode)")
+	} else {
+		vkAuth, err = s.vkAuth.VkAuth(s.nodeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	srv := &http.Server{

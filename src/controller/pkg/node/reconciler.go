@@ -11,6 +11,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/grafana/grafana-operator/v5/controllers/autodetect"
 	"github.com/pkg/errors"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
@@ -72,9 +73,10 @@ type ReconcilerConfig struct {
 // nReconciler manages Virtual Kubelet instances
 type nReconciler struct {
 	ReconcilerConfig
-	kubeClient kubernetes.Interface
-	instances  map[string]*instance
-	vkAuth     vkauth.Auth
+	kubeClient  kubernetes.Interface
+	instances   map[string]*instance
+	vkAuth      vkauth.Auth
+	isOpenShift bool
 }
 
 // nReconcilerAdapter is a helper for adding additional methods to nReconciler
@@ -89,6 +91,16 @@ type Reconciler interface {
 }
 
 func NewReconciler(ctx context.Context, config ReconcilerConfig) (Reconciler, error) {
+	detector, err := autodetect.New(config.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	isOpenShift, err := detector.IsOpenshift()
+	if err != nil {
+		return nil, err
+	}
+
 	kubeClient, err := client.NewKubeClient(config.KubeConfig)
 	if err != nil {
 		return nil, err
@@ -105,6 +117,7 @@ func NewReconciler(ctx context.Context, config ReconcilerConfig) (Reconciler, er
 		kubeClient:       kubeClient,
 		instances:        make(map[string]*instance),
 		vkAuth:           vkAuth,
+		isOpenShift:      isOpenShift,
 	}
 	r, err := reconciler.New(ctx, &logger, config.Interval, nr)
 	if err != nil {
@@ -149,6 +162,7 @@ func (r *nReconciler) Reconcile(ctx context.Context) error {
 				Tracker:        r.Tracker,
 				Environment:    r.Environment,
 				VkAuth:         r.vkAuth,
+				IsOpenShift:    r.isOpenShift,
 			}))
 		}
 
