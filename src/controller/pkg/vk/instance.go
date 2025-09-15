@@ -54,6 +54,7 @@ type instance struct {
 	metricsProvider     provider.MetricsProvider
 	vkAuth              vkauth.Auth
 	enableKubeletServer bool
+	disableAuth         bool
 }
 
 type InstanceConfig struct {
@@ -63,6 +64,7 @@ type InstanceConfig struct {
 	Tracker        tracker.Tracker
 	Environment    environment.Environment
 	VkAuth         vkauth.Auth
+	IsOpenShift    bool
 }
 
 // TODO: This doesn't re-create the node if it's deleted from the API server
@@ -136,6 +138,7 @@ func NewInstance(instanceCfg InstanceConfig) Instance {
 		tracker:             instanceCfg.Tracker,
 		vkAuth:              instanceCfg.VkAuth,
 		enableKubeletServer: enableKubeletServer,
+		disableAuth:         instanceCfg.IsOpenShift, // OpenShift/OKD do not support Kubelet HTTP server authentication
 	}
 }
 
@@ -248,7 +251,7 @@ func (i *instance) Run(ctx context.Context, cancel func()) error {
 	if i.enableKubeletServer {
 		// Set up Kubelet server
 		handler := i.podHandlerConfig(podInformerFactory)
-		kubeletServer := NewKubeletServer(cfg.Client, handler, i.vkAuth, nodeName, func() []corev1.NodeAddress {
+		kubeletServer := NewKubeletServer(cfg.Client, handler, i.vkAuth, i.disableAuth, nodeName, func() []corev1.NodeAddress {
 			return cfg.NodeSpec.Status.Addresses
 		})
 

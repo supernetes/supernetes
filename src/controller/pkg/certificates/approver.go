@@ -42,13 +42,13 @@ func (a *approver) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result
 
 	// Check if this is a Kubelet serving certificate CSR
 	if csr.Spec.SignerName != certv1.KubeletServingSignerName {
-		log.Trace().Msg("unknown signer, skipping")
+		log.Trace().Str("signer", csr.Spec.SignerName).Msg("unknown signer, skipping")
 		return ctrl.Result{}, nil
 	}
 
 	// Check if this is a Supernetes CSR
 	if csr.Spec.Username != a.serviceAccount {
-		log.Trace().Msg("not requested by Supernetes SA, skipping")
+		log.Trace().Str("user", csr.Spec.Username).Msg("not requested by Supernetes SA, skipping")
 		return ctrl.Result{}, nil
 	}
 

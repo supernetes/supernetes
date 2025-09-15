@@ -6,6 +6,7 @@ require (
 	github.com/fluxcd/cli-utils v0.36.0-flux.15
 	github.com/fluxcd/kustomize-controller/api v1.6.1
 	github.com/fluxcd/pkg/ssa v0.53.0
+	github.com/grafana/grafana-operator/v5 v5.19.4
 	github.com/jhump/grpctunnel v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_model v0.6.2
