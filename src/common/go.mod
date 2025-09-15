@@ -10,7 +10,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.34.0
 	github.com/virtual-kubelet/virtual-kubelet v1.11.0
-	google.golang.org/grpc v1.75.0
+	google.golang.org/grpc v1.75.1
 	k8s.io/apimachinery v0.34.0
 	k8s.io/client-go v0.34.0
 )
