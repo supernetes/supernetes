@@ -3,7 +3,6 @@ module github.com/supernetes/supernetes/agent
 go 1.24.0
 
 require (
-	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/jhump/grpctunnel v0.3.0
 	github.com/lithammer/dedent v1.1.0
 	github.com/pkg/errors v0.9.1

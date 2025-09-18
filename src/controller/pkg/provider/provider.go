@@ -86,10 +86,7 @@ func (p *podProvider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 		// Detect if the pod hasn't been scheduled yet through the absence of the workload identifier label
 		if _, ok := pod.Labels[supernetes.LabelWorkloadIdentifier]; !ok {
 			log.Trace().Msg("deploying workload")
-			workload, err := convertToWorkload(pod, p.nodeName)
-			if err != nil {
-				return err
-			}
+			workload := convertToWorkload(pod, p.nodeName)
 
 			meta, err := p.workloadClient.Create(ctx, workload)
 			if err != nil {

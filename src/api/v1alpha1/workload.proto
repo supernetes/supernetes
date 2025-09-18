@@ -32,17 +32,28 @@ message WorkloadMeta {
   map<string, string> extra = 3; // Extra metadata for debugging etc.
 }
 
+// An individual container to execute as part of a workload
+message WorkloadContainer {
+  string name = 1;
+  string image = 2;
+  repeated string command = 3; // Container ENTRYPOINT override (optional)
+  repeated string args = 4; // Container CMD override (optional)
+}
+
+// An array of containers, defined separately for direct encoding/decoding
+message WorkloadContainers {
+  repeated WorkloadContainer array = 1;
+}
+
 // Data description for workloads, similar to .spec in Kubernetes resource definitions
 message WorkloadSpec {
-  string image = 1;
-  repeated string command = 2; // Container ENTRYPOINT override (optional)
-  repeated string args = 3; // Container CMD override (optional)
+  WorkloadContainers containers = 1;
   // Set of nodes that the workload should be attempted to be scheduled onto.
   // May be non-exhaustive, in which case the HPC-side scheduler decides.
-  repeated string node_names = 4;
+  repeated string node_names = 2;
   // Additional HPC-runtime-specific options. Keys should be specified in their most verbose
   // form without common prefixes/suffixes, for example, as full flags without the "--" prefix.
-  map<string, string> job_options = 5;
+  map<string, string> job_options = 3;
 }
 
 // Describes all states a workload can be in during its lifecycle
@@ -72,8 +83,9 @@ message Workload {
 // WorkloadLogRequest is to be sent once in a Logs request to initiate log streaming for a workload
 message WorkloadLogRequest {
   WorkloadMeta meta = 1; // Workload to stream logs for
-  bool follow = 2; // Read current log history only or keep waiting for more lines as well
-  int32 tail = 3; // When reading log history, consider only `tail` last lines
+  string container = 2; // Container to select within the workload
+  bool follow = 3; // Read current log history only or keep waiting for more lines as well
+  int32 tail = 4; // When reading log history, consider only `tail` last lines
 }
 
 // WorkloadLogChunk represents a chunk of log data from a workload
