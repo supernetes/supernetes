@@ -78,6 +78,8 @@ func convertToPod(workload *api.Workload, node *string, index int) (*corev1.Pod,
 			Labels:    labels,
 		},
 		Spec: corev1.PodSpec{
+			// TODO: We need to sync the actual containers here, at least their names,
+			//  in order to be able to retrieve their logs through untracked workloads.
 			Containers: []corev1.Container{{
 				Name:                     supernetes.ContainerPlaceholder,
 				Image:                    supernetes.ImagePlaceholder,

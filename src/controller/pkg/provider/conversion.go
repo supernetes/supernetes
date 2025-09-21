@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/supernetes"
 	corev1 "k8s.io/api/core/v1"
@@ -57,22 +56,27 @@ func workloadMeta(pod *corev1.Pod) *api.WorkloadMeta {
 }
 
 // convertToWorkload converts the given corev1.Pod spec to an api.Workload for deployment
-func convertToWorkload(pod *corev1.Pod, nodeName string) (*api.Workload, error) {
-	if len(pod.Spec.Containers) != 1 {
-		return nil, errors.New("pod must have exactly one container")
-	}
-	container := &pod.Spec.Containers[0]
+func convertToWorkload(pod *corev1.Pod, nodeName string) *api.Workload {
+	containers := make([]*api.WorkloadContainer, len(pod.Spec.Containers))
 
+	for i, c := range pod.Spec.Containers {
+		containers[i] = &api.WorkloadContainer{
+			Name:    c.Name,
+			Image:   c.Image,
+			Command: c.Command,
+			Args:    c.Args,
+		}
+	}
+
+	// TODO: Conversion of CPU/memory requests/limits
 	return &api.Workload{
 		Meta: workloadMeta(pod),
 		Spec: &api.WorkloadSpec{
-			Image:      container.Image,
-			Command:    container.Command,
-			Args:       container.Args,
+			Containers: &api.WorkloadContainers{Array: containers},
 			NodeNames:  getNodes(pod, nodeName),
 			JobOptions: getLabels(pod, supernetes.ScopeOption),
 		},
-	}, nil
+	}
 }
 
 // applyWorkloadMeta applies the configuration from the given api.WorkloadMeta to the given corev1.Pod

@@ -36,10 +36,10 @@ func NewRootCommand() *cobra.Command {
 
 	addGlobalFlags(root.PersistentFlags())
 	root.AddCommand(NewCmdRun())
-	root.AddCommand(NewCmdTimestamp())
+	root.AddCommand(NewCmdDispatch())
 	return root
 }
 
 func addGlobalFlags(fs *pflag.FlagSet) {
-	fs.StringVarP(&logLevel, "log-level", "l", "trace", "zerolog log level") // TODO: Default to "info"
+	fs.StringVarP(&logLevel, "log-level", "l", "info", "zerolog log level")
 }

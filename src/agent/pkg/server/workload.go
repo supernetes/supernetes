@@ -26,7 +26,7 @@ import (
 	"github.com/supernetes/supernetes/agent/pkg/sbatch"
 	"github.com/supernetes/supernetes/agent/pkg/scancel"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
-	"github.com/supernetes/supernetes/common/pkg/log"
+	sulog "github.com/supernetes/supernetes/common/pkg/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -49,7 +49,8 @@ func NewWorkloadServer(runtime sbatch.Runtime, filter filter.Filter) api.Workloa
 }
 
 func (s *workloadServer) Create(_ context.Context, workload *api.Workload) (*api.WorkloadMeta, error) {
-	log.Debug().Stringer("workload", workload).Msg("Create invoked")
+	log := sulog.Scoped().Stringer("workload", workload).Logger()
+	log.Debug().Msg("Create invoked")
 	jobId, err := s.runtime.Run(workload)
 	if err != nil {
 		return nil, err
@@ -63,30 +64,35 @@ func (s *workloadServer) Create(_ context.Context, workload *api.Workload) (*api
 }
 
 func (s *workloadServer) Update(ctx context.Context, workload *api.Workload) (*emptypb.Empty, error) {
-	log.Debug().Stringer("workload", workload).Msg("Update invoked")
+	log := sulog.Scoped().Stringer("workload", workload).Logger()
+	log.Debug().Msg("Update invoked")
 
 	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
 
 // Delete for Slurm just means cancelling the job, it's the best we can do
 func (s *workloadServer) Delete(ctx context.Context, workload *api.WorkloadMeta) (*emptypb.Empty, error) {
-	log.Debug().Stringer("workload", workload).Msg("Delete invoked")
+	log := sulog.Scoped().Stringer("workload", workload).Logger()
+	log.Debug().Msg("Delete invoked")
 	return nil, scancel.Run(workload)
 }
 
 func (s *workloadServer) Get(ctx context.Context, workloadMeta *api.WorkloadMeta) (*api.Workload, error) {
-	log.Debug().Stringer("workloadMeta", workloadMeta).Msg("Get invoked")
+	log := sulog.Scoped().Stringer("workloadMeta", workloadMeta).Logger()
+	log.Debug().Msg("Get invoked")
 
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
 
 func (s *workloadServer) GetStatus(ctx context.Context, workloadMeta *api.WorkloadMeta) (*api.WorkloadStatus, error) {
-	log.Debug().Stringer("workloadMeta", workloadMeta).Msg("GetStatus invoked")
+	log := sulog.Scoped().Stringer("workloadMeta", workloadMeta).Logger()
+	log.Debug().Msg("GetStatus invoked")
 
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
 }
 
 func (s *workloadServer) List(_ *emptypb.Empty, stream grpc.ServerStreamingServer[api.Workload]) error {
+	log := sulog.Scoped().Logger()
 	log.Debug().Msg("List invoked")
 	jobData, err := job.ReadJobData(nil)
 	if err != nil {
@@ -114,18 +120,29 @@ func (s *workloadServer) List(_ *emptypb.Empty, stream grpc.ServerStreamingServe
 	return nil
 }
 
+// parsedLine represents a parsed log line
+type parsedLine struct {
+	timestamp time.Time
+	line      []byte
+}
+
 func (s *workloadServer) Logs(stream grpc.BidiStreamingServer[api.WorkloadLogRequest, api.WorkloadLogChunk]) error {
-	log.Debug().Msg("Logs invoked")
+	sulog.Debug().Msg("Logs invoked")
 	request, err := stream.Recv()
 	if err != nil {
 		return err
 	}
 
-	log.Trace().Str("id", request.Meta.Identifier).Msg("received WorkloadMeta")
+	log := sulog.Scoped().
+		Str("name", request.Meta.Name).
+		Str("id", request.Meta.Identifier).
+		Str("container", request.Container).
+		Logger()
+	log.Trace().Msg("received WorkloadMeta")
 
 	if len(request.Meta.Identifier) == 0 {
 		err := errors.New("missing job identifier")
-		log.Err(err).Str("name", request.Meta.Name).Msg("log streaming failed")
+		log.Err(err).Msg("log streaming failed")
 		return err
 	}
 
@@ -135,18 +152,18 @@ func (s *workloadServer) Logs(stream grpc.BidiStreamingServer[api.WorkloadLogReq
 	// Prevent escape from I/O directory using a malicious workload identifier
 	if !strings.HasPrefix(filePath, cache.IoDir()) {
 		err := errors.New("invalid job identifier")
-		log.Err(err).Str("id", request.Meta.Identifier).Msg("prevented filesystem escape")
+		log.Err(err).Msg("prevented filesystem escape")
 		return err
 	}
 
-	lines := make(chan []byte)
+	lines := make(chan parsedLine)
 	stop := make(chan error, 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {
-		err := tailF(ctx, filePath, lines, int(request.Tail), request.Follow)
+		err := tailF(ctx, &log, filePath, lines, request.Container, int(request.Tail), request.Follow)
 		if err != nil {
 			log.Err(err).Str("path", filePath).Msg("tailing log failed")
 		}
@@ -175,9 +192,6 @@ func (s *workloadServer) Logs(stream grpc.BidiStreamingServer[api.WorkloadLogReq
 	}()
 
 	for {
-		// Logger for line parser
-		logger := log.Scoped().Str("id", request.Meta.Identifier).Logger()
-
 		select {
 		case err := <-stop:
 			if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
@@ -187,14 +201,10 @@ func (s *workloadServer) Logs(stream grpc.BidiStreamingServer[api.WorkloadLogReq
 			log.Trace().Err(err).Msg("stopping log streaming")
 			return err
 		case line := <-lines:
-			// Parse the timestamp from the line
-			timestamp, line := parseLine(line, &logger)
-			//log.Trace().Time("timestamp", timestamp).Bytes("line", line).Msg("retrieved line")
-
 			// Construct and send a log chunk
 			if err := stream.Send(&api.WorkloadLogChunk{
-				Timestamp: timestamppb.New(timestamp),
-				Line:      line,
+				Timestamp: timestamppb.New(line.timestamp),
+				Line:      line.line,
 			}); err != nil {
 				return err
 			}
@@ -204,7 +214,7 @@ func (s *workloadServer) Logs(stream grpc.BidiStreamingServer[api.WorkloadLogReq
 
 // Lustre doesn't support inotify: http://lists.lustre.org/pipermail/lustre-discuss-lustre.org/2019-May/016469.html
 // `tail` automatically reverts to polling once per second when it encounters a non-local filesystem, let's do the same
-func tailF(ctx context.Context, filePath string, lines chan<- []byte, n int, follow bool) error {
+func tailF(ctx context.Context, log *zerolog.Logger, filePath string, lines chan<- parsedLine, containerFilter string, n int, follow bool) error {
 	immediate := make(chan struct{}, 1)
 	immediate <- struct{}{}
 
@@ -277,12 +287,27 @@ func tailF(ctx context.Context, filePath string, lines chan<- []byte, n int, fol
 			}
 
 			for scanner.Scan() {
+				// The line parsing and queueing logic below is copy-free, producing only sub-slices of the given line.
+				// This causes problems with the asynchronous gRPC stream handling, as reading the next line with the
+				// scanner may replace the underlying line buffer's contents mid-send. Thus, we need to make one
+				// explicit copy of each line here to avoid the race condition.
+				lineBytes := make([]byte, len(scanner.Bytes()))
+				copy(lineBytes, scanner.Bytes())
+
+				// Log line received, parse it extracting the timestamp and container name
+				line, container := parseLine(lineBytes, log)
+
+				// Consider only general lines (where container name could not be parsed) and lines for the requested container
+				if container != nil && string(container) != containerFilter {
+					continue
+				}
+
 				if tailn {
 					// Track n latest lines in the ring buffer
-					buffer.Value = scanner.Bytes()
+					buffer.Value = line
 					buffer = buffer.Next()
 				} else {
-					lines <- scanner.Bytes()
+					lines <- line
 				}
 			}
 
@@ -290,7 +315,7 @@ func tailF(ctx context.Context, filePath string, lines chan<- []byte, n int, fol
 				// Send the n latest lines
 				buffer.Do(func(line any) {
 					if line != nil {
-						lines <- line.([]byte)
+						lines <- line.(parsedLine)
 					}
 				})
 			}
@@ -314,19 +339,27 @@ func tailF(ctx context.Context, filePath string, lines chan<- []byte, n int, fol
 	}
 }
 
-func parseLine(line []byte, log *zerolog.Logger) (time.Time, []byte) {
-	splits := bytes.SplitN(line, []byte(" "), 2)
-	if len(splits) < 2 {
-		output := bytes.Join(splits, nil) // Handles both length 0 and 1
-		log.Warn().Bytes("line", output).Msg("log line without timestamp")
-		return time.Time{}, output
+// parseLine parses an input log line prepended with a timestamp and
+// a container name, returning the parsed line and the container name
+func parseLine(line []byte, log *zerolog.Logger) (parsedLine, []byte) {
+	splits := bytes.SplitN(line, []byte(" "), 3)
+
+	if len(splits) < 3 {
+		log.Warn().Bytes("line", line).Msg("log line without metadata")
+		return parsedLine{line: line}, nil
 	}
 
 	timestamp, err := time.Parse(time.RFC3339, string(splits[0]))
 	if err != nil {
-		log.Err(err).Bytes("line", splits[1]).Msg("unable to parse timestamp for log line")
+		log.Err(err).Bytes("line", line).Msg("unable to parse timestamp for log line")
+
+		// If timestamp parsing fails, the second part is likely also not a container name
+		return parsedLine{line: line}, nil
 	}
 
-	// Zero timestamp on failure
-	return timestamp, splits[1]
+	// Zero timestamp and nil container name on failure
+	return parsedLine{
+		timestamp: timestamp,
+		line:      splits[2],
+	}, splits[1]
 }
