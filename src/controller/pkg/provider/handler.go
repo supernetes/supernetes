@@ -76,6 +76,7 @@ func startReader(stream logStream, opts vkapi.ContainerLogOpts, log *zerolog.Log
 			l.chunks <- chunk
 		}
 	}()
+
 	return l
 }
 
@@ -178,8 +179,8 @@ func (l *logReader) Close() error {
 }
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
-func (p *podProvider) GetContainerLogs(ctx context.Context, namespace, podName, _ string, opts vkapi.ContainerLogOpts) (io.ReadCloser, error) {
-	log := sulog.Scoped().Str("namespace", namespace).Str("pod", podName).Logger()
+func (p *podProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts vkapi.ContainerLogOpts) (io.ReadCloser, error) {
+	log := sulog.Scoped().Str("namespace", namespace).Str("pod", podName).Str("container", containerName).Logger()
 	log.Trace().Msg("GetContainerLogs called")
 
 	pod, err := p.GetPod(ctx, namespace, podName)
@@ -200,9 +201,10 @@ func (p *podProvider) GetContainerLogs(ctx context.Context, namespace, podName, 
 	}
 
 	if err := stream.Send(&v1alpha1.WorkloadLogRequest{
-		Meta:   workloadMeta(pod),
-		Follow: opts.Follow,
-		Tail:   int32(opts.Tail),
+		Meta:      workloadMeta(pod),
+		Container: containerName,
+		Follow:    opts.Follow,
+		Tail:      int32(opts.Tail),
 	}); err != nil {
 		return nil, err
 	}

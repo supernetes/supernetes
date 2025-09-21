@@ -32,6 +32,7 @@ func (j *Job) ConvertToApi(nodeFilter func(string) bool) *api.Workload {
 			Extra:      map[string]string{"job-state": string(j.JobState)},
 			//Labels: labels,
 		},
+		// NOTE: j.Command is not populated here on LUMI
 		//Spec: &api.WorkloadSpec{
 		//	Image: image,
 		//	Args:  args,

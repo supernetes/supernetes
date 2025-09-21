@@ -8,6 +8,7 @@ package sbatch
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"maps"
 	"os"
@@ -17,12 +18,12 @@ import (
 	"regexp"
 	"strings"
 
-	"al.essio.dev/pkg/shellescape"
 	"github.com/pkg/errors"
 	"github.com/supernetes/supernetes/agent/pkg/cache"
 	api "github.com/supernetes/supernetes/api/v1alpha1"
 	"github.com/supernetes/supernetes/common/pkg/log"
 	"github.com/supernetes/supernetes/config/pkg/config"
+	"google.golang.org/protobuf/proto"
 )
 
 /*
@@ -37,16 +38,14 @@ type Runtime interface {
 }
 
 type runtime struct {
-	config           *config.SlurmConfig
-	containerRuntime string
+	config *config.SlurmConfig
 }
 
 var _ Runtime = &runtime{} // Static type assert
 
 func NewRuntime(config *config.SlurmConfig) Runtime {
 	return &runtime{
-		config:           config,
-		containerRuntime: containerRuntime(),
+		config: config,
 	}
 }
 
@@ -118,26 +117,20 @@ func (r *runtime) composeScript(workload *api.Workload) (string, error) {
 		script += fmt.Sprintf("#SBATCH --%s %q\n", k, v)
 	}
 
-	// Safety options for the actual command
-	script += "set -eo pipefail\n"
-
-	command := "run"
-	if len(workload.Spec.Command) > 0 {
-		command = "exec" // Allows for overriding the container ENTRYPOINT
-	}
-
-	script += shellescape.QuoteCommand(append(
-		[]string{r.containerRuntime, command, "--compat", fmt.Sprintf("docker://%s", workload.Spec.Image)},
-		append(workload.Spec.Command, workload.Spec.Args...)...,
-	))
-
+	// Resolve the path to the agent binary
 	binPath, err := agentPath()
 	if err != nil {
 		return "", errors.Wrap(err, "resolving agent binary path failed")
 	}
 
-	// Append the timestamping provided by the agent
-	script += fmt.Sprintf(" |& %q timestamp", binPath)
+	// Protobuf-encode the container specs
+	containers, err := proto.Marshal(workload.Spec.Containers)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to encode container specs")
+	}
+
+	// Pass the container specs to `dispatch` through Slurm
+	script += fmt.Sprintf("exec %q dispatch %s", binPath, base64.StdEncoding.EncodeToString(containers))
 
 	log.Debug().Str("script", script).Msg("composed sbatch script")
 	return script, nil
