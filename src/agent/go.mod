@@ -13,7 +13,7 @@ require (
 	github.com/supernetes/supernetes/common v0.0.0
 	github.com/supernetes/supernetes/config v0.1.0
 	google.golang.org/grpc v1.75.1
-	google.golang.org/protobuf v1.36.9
+	google.golang.org/protobuf v1.36.10
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730
 )
 
