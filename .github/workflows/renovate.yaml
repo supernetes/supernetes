@@ -9,6 +9,7 @@ on:
     # https://docs.renovatebot.com/key-concepts/automerge/#renovate-automerges-take-time
     - cron: "0/15 15 * * 1"
   workflow_dispatch: # Manual invocation option
+  pull_request: # TODO: Temporary, remove
 
 name: Renovate
 jobs:
@@ -46,3 +47,4 @@ jobs:
           RENOVATE_GIT_PRIVATE_KEY: ${{ secrets.RENOVATE_GIT_PRIVATE_KEY }}
           RENOVATE_PERSIST_REPO_DATA: true
           RENOVATE_BASE_DIR: /tmp/renovate
+          LOG_LEVEL: 'debug'
