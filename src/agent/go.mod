@@ -7,7 +7,7 @@ require (
 	github.com/lithammer/dedent v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.34.0
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/supernetes/supernetes/api v0.0.0
 	github.com/supernetes/supernetes/common v0.0.0
