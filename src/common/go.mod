@@ -2,7 +2,7 @@ module github.com/supernetes/supernetes/common
 
 go 1.25.0
 
-toolchain go1.26.0
+toolchain go1.26.1
 
 require (
 	github.com/go-logr/logr v1.4.3
@@ -10,7 +10,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.34.0
 	github.com/virtual-kubelet/virtual-kubelet v1.12.0
-	google.golang.org/grpc v1.79.1
+	google.golang.org/grpc v1.79.2
 	k8s.io/apimachinery v0.35.0
 	k8s.io/client-go v0.35.0
 )
