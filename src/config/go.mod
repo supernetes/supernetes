@@ -2,7 +2,7 @@ module github.com/supernetes/supernetes/config
 
 go 1.25.0
 
-toolchain go1.25.3
+toolchain go1.25.4
 
 require (
 	github.com/lithammer/dedent v1.1.0
