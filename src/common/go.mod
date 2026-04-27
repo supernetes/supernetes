@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/go-logr/zerologr v1.2.3
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.35.0
+	github.com/rs/zerolog v1.35.1
 	github.com/virtual-kubelet/virtual-kubelet v1.12.0
 	google.golang.org/grpc v1.80.0
 	k8s.io/apimachinery v0.35.0
